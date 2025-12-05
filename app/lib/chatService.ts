@@ -208,16 +208,14 @@ export async function getBotResponse(userMessage: string, senderId: string = 'we
         const llmStart = Date.now();
 
         // Use DeepSeek 3.1 with streaming and thinking enabled
-        const stream = await client.chat.completions.create({
+        const stream: any = await client.chat.completions.create({
             model: "deepseek-ai/deepseek-v3.1",
             messages,
-            temperature: 0.4, // Increased for more natural variation
+            temperature: 0.4,
             top_p: 0.7,
             max_tokens: 4096,
-            // @ts-ignore - extra_body for NVIDIA API
-            extra_body: { chat_template_kwargs: { thinking: true } },
             stream: true,
-        } as any);
+        });
 
         let responseContent = '';
         let reasoningContent = '';

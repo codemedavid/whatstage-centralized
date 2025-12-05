@@ -38,8 +38,8 @@ export default function Home() {
             <button
               onClick={() => setActiveTab('documents')}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === 'documents'
-                  ? 'bg-teal-50 text-teal-700 border border-teal-200'
-                  : 'text-gray-600 hover:bg-gray-100'
+                ? 'bg-teal-50 text-teal-700 border border-teal-200'
+                : 'text-gray-600 hover:bg-gray-100'
                 }`}
             >
               <FileText size={16} />
@@ -48,8 +48,8 @@ export default function Home() {
             <button
               onClick={() => setActiveTab('rules')}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === 'rules'
-                  ? 'bg-teal-50 text-teal-700 border border-teal-200'
-                  : 'text-gray-600 hover:bg-gray-100'
+                ? 'bg-teal-50 text-teal-700 border border-teal-200'
+                : 'text-gray-600 hover:bg-gray-100'
                 }`}
             >
               <Bot size={16} />
