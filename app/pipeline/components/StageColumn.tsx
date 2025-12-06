@@ -45,7 +45,7 @@ export default function StageColumn({ stage, onMoveLead, allStages }: StageColum
     const [moveMenuOpen, setMoveMenuOpen] = useState<string | null>(null);
 
     return (
-        <div className="min-w-[320px] flex flex-col h-full bg-gray-50/50 rounded-xl group">
+        <div className="w-[320px] max-w-[320px] flex-shrink-0 flex flex-col h-full bg-gray-50/50 rounded-xl group">
             {/* Stage Header */}
             <div className="flex items-center justify-between p-4 border-b border-gray-100">
                 <div className="flex items-center gap-3">
@@ -73,7 +73,7 @@ export default function StageColumn({ stage, onMoveLead, allStages }: StageColum
                     stage.leads.map((lead) => (
                         <div
                             key={lead.id}
-                            className="bg-white rounded-lg border border-gray-100 p-4 hover:shadow-md hover:border-gray-200 transition-all cursor-pointer group/card"
+                            className="bg-white rounded-lg border border-gray-100 p-4 hover:shadow-md hover:border-gray-200 transition-all cursor-pointer group/card w-full max-w-full overflow-hidden"
                         >
                             <div className="flex items-start justify-between mb-3">
                                 <div className="flex items-center gap-2">
@@ -129,12 +129,13 @@ export default function StageColumn({ stage, onMoveLead, allStages }: StageColum
                             {/* AI Reason - truncated */}
                             {lead.ai_classification_reason && (
                                 <p
-                                    className="text-xs text-gray-500 mb-3 italic overflow-hidden"
+                                    className="text-xs text-gray-500 mb-3 italic overflow-hidden break-words"
                                     style={{
                                         display: '-webkit-box',
                                         WebkitLineClamp: 2,
                                         WebkitBoxOrient: 'vertical',
-                                        maxWidth: '100%',
+                                        wordBreak: 'break-word',
+                                        overflowWrap: 'break-word',
                                     }}
                                     title={lead.ai_classification_reason}
                                 >
