@@ -95,7 +95,7 @@ export default function FAQEditor({ categoryId, categoryName }: FAQEditorProps) 
             {/* FAQ Form */}
             <form onSubmit={handleSubmit} className="p-4 border-b border-gray-200 bg-white space-y-3">
                 <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-black mb-1">
                         <MessageCircle size={14} className="inline mr-1" />
                         Question
                     </label>
@@ -104,11 +104,11 @@ export default function FAQEditor({ categoryId, categoryName }: FAQEditorProps) 
                         value={question}
                         onChange={(e) => setQuestion(e.target.value)}
                         placeholder="e.g., How much is your product?"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 bg-gray-50 focus:ring-blue-500 text-sm"
                     />
                 </div>
                 <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-black mb-1">
                         Answer
                     </label>
                     <textarea
@@ -116,7 +116,7 @@ export default function FAQEditor({ categoryId, categoryName }: FAQEditorProps) 
                         onChange={(e) => setAnswer(e.target.value)}
                         placeholder="e.g., Our product starts at ₱1,500 po for the Premium Package..."
                         rows={3}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm resize-none"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 bg-gray-50 focus:ring-blue-500 text-sm resize-none"
                     />
                 </div>
                 <button
