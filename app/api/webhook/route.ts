@@ -45,29 +45,6 @@ async function getSettings() {
     }
 }
 
-// Check if the sender is the Page itself (human agent sending message)
-// When a human agent replies from the Page, the sender ID is the Page ID
-async function isHumanAgentMessage(senderId: string): Promise<boolean> {
-    try {
-        // Check if this sender ID matches any of our connected Facebook pages
-        const { data, error } = await supabase
-            .from('facebook_pages')
-            .select('page_id')
-            .eq('page_id', senderId)
-            .limit(1);
-
-        if (error) {
-            console.error('Error checking if sender is page:', error);
-            return false;
-        }
-
-        return data && data.length > 0;
-    } catch (error) {
-        console.error('Error in isHumanAgentMessage:', error);
-        return false;
-    }
-}
-
 export async function GET(req: Request) {
     const settings = await getSettings();
     const VERIFY_TOKEN = settings.facebook_verify_token || process.env.FACEBOOK_VERIFY_TOKEN || 'TEST_TOKEN';
@@ -130,18 +107,20 @@ export async function POST(req: Request) {
 
                 console.log('Processing message from:', sender_psid, 'to:', recipient_psid, 'mid:', messageId);
 
-                // Check if this is a message FROM the page (human agent) TO a customer
-                const isHumanMessage = await isHumanAgentMessage(sender_psid);
+                // Check if this is a message echo (page/human agent sent a message)
+                // Facebook sends is_echo=true when the PAGE sends a message (human agent reply)
+                const isEchoMessage = webhook_event.message?.is_echo === true;
 
-                if (isHumanMessage && webhook_event.message) {
-                    // Human agent is sending a message - start/refresh takeover for this customer
-                    console.log('Human agent message detected! Starting takeover for recipient:', recipient_psid);
+                if (isEchoMessage) {
+                    // This is a message sent BY the page (human agent) TO a customer
+                    // The recipient is the customer, start takeover for them
+                    console.log('📢 MESSAGE ECHO detected! Human agent sent message to:', recipient_psid);
                     waitUntil(
                         startOrRefreshTakeover(recipient_psid).catch(err => {
                             console.error('Error starting takeover:', err);
                         })
                     );
-                    // Don't process this message further (no AI response needed for outgoing messages)
+                    // Don't process echo messages further (they're outgoing, not incoming)
                     continue;
                 }
 
