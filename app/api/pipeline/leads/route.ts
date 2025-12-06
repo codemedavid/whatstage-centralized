@@ -51,12 +51,14 @@ export async function PATCH(req: Request) {
         // Get current stage for history
         const { data: lead } = await supabase
             .from('leads')
-            .select('current_stage_id')
+            .select('current_stage_id, sender_id')
             .eq('id', leadId)
             .single();
 
+        const stageChanged = lead?.current_stage_id !== stageId;
+
         // Record stage change history
-        if (lead?.current_stage_id !== stageId) {
+        if (stageChanged) {
             await supabase
                 .from('lead_stage_history')
                 .insert({
@@ -79,6 +81,16 @@ export async function PATCH(req: Request) {
         if (error) {
             console.error('Error updating lead:', error);
             return NextResponse.json({ error: 'Failed to update lead' }, { status: 500 });
+        }
+
+        // Trigger workflows for this stage if stage changed
+        if (stageChanged && lead?.sender_id) {
+            console.log(`Lead ${leadId} moved to stage ${stageId}, triggering workflows...`);
+            const { triggerWorkflowsForStage } = await import('@/app/lib/workflowEngine');
+            // Don't await - fire and forget to not block the response
+            triggerWorkflowsForStage(stageId, leadId).catch(err => {
+                console.error('Error triggering workflows:', err);
+            });
         }
 
         return NextResponse.json({ lead: data });
