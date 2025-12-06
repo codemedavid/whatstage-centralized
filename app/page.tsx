@@ -6,18 +6,28 @@ import ChatPreview from "./components/ChatPreview";
 import Header from "./components/Header";
 import DocumentEditor from "./components/DocumentEditor";
 import RulesEditor from "./components/RulesEditor";
+import CategoryManager from "./components/CategoryManager";
+import FAQEditor from "./components/FAQEditor";
 import { FileText, Bot } from "lucide-react";
+
+interface Category {
+  id: string;
+  name: string;
+  type: 'general' | 'qa';
+  color: string;
+}
 
 export default function Home() {
   const [selectedDocText, setSelectedDocText] = useState('');
   const [activeTab, setActiveTab] = useState<'documents' | 'rules'>('documents');
+  const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
 
-  const handleSaveDocument = async (text: string) => {
+  const handleSaveDocument = async (text: string, categoryId?: string) => {
     try {
       await fetch('/api/knowledge', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text }),
+        body: JSON.stringify({ text, categoryId }),
       });
       window.location.reload();
     } catch (error) {
@@ -25,11 +35,45 @@ export default function Home() {
     }
   };
 
+  // Determine which editor to show based on selected category
+  const renderEditor = () => {
+    if (activeTab === 'rules') {
+      return <RulesEditor />;
+    }
+
+    // If a Q&A category is selected, show FAQ editor
+    if (selectedCategory?.type === 'qa') {
+      return (
+        <FAQEditor
+          categoryId={selectedCategory.id}
+          categoryName={selectedCategory.name}
+        />
+      );
+    }
+
+    // Default: show document editor
+    return (
+      <DocumentEditor
+        initialText={selectedDocText}
+        onSave={(text) => handleSaveDocument(text, selectedCategory?.id)}
+      />
+    );
+  };
+
   return (
     <div className="flex flex-col h-full">
       <Header />
       <div className="flex-1 flex overflow-hidden">
-        <KnowledgeBase onSelect={setSelectedDocText} />
+        {/* Category Manager */}
+        <CategoryManager
+          selectedCategoryId={selectedCategory?.id || null}
+          onSelectCategory={setSelectedCategory}
+        />
+
+        {/* Knowledge Base - filtered by category */}
+        <KnowledgeBase
+          onSelect={setSelectedDocText}
+        />
 
         {/* Main Content Area with Tabs */}
         <div className="flex-1 flex flex-col overflow-hidden">
@@ -43,7 +87,7 @@ export default function Home() {
                 }`}
             >
               <FileText size={16} />
-              Documents
+              {selectedCategory?.type === 'qa' ? 'FAQs' : 'Documents'}
             </button>
             <button
               onClick={() => setActiveTab('rules')}
@@ -55,15 +99,16 @@ export default function Home() {
               <Bot size={16} />
               Bot Rules
             </button>
+            {selectedCategory && (
+              <span className="ml-2 text-sm text-gray-500">
+                Category: <span className="font-medium text-gray-700">{selectedCategory.name}</span>
+              </span>
+            )}
           </div>
 
           {/* Tab Content */}
           <div className="flex-1 overflow-hidden">
-            {activeTab === 'documents' ? (
-              <DocumentEditor initialText={selectedDocText} onSave={handleSaveDocument} />
-            ) : (
-              <RulesEditor />
-            )}
+            {renderEditor()}
           </div>
         </div>
 

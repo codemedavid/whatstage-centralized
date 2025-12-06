@@ -5,7 +5,7 @@ import { supabase } from '@/app/lib/supabase';
 export async function GET() {
     const { data, error } = await supabase
         .from('documents')
-        .select('id, content, metadata, folder_id')
+        .select('id, content, metadata, folder_id, category_id')
         .order('id', { ascending: false })
         .limit(50);
 
@@ -13,11 +13,13 @@ export async function GET() {
         return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const mappedData = data.map((item: any) => ({
         id: item.id,
         text: item.content,
         createdAt: new Date().toISOString(),
         folderId: item.folder_id || undefined,
+        categoryId: item.category_id || undefined,
     }));
 
     return NextResponse.json(mappedData);
@@ -44,22 +46,28 @@ export async function POST(req: Request) {
     }
 }
 
-// PATCH - Update document's folder assignment
+// PATCH - Update document's folder or category assignment
 export async function PATCH(req: Request) {
     try {
-        const { id, folderId } = await req.json();
+        const { id, folderId, categoryId } = await req.json();
 
         if (!id) {
             return NextResponse.json({ error: 'Document ID is required' }, { status: 400 });
         }
 
+        // Build update object with provided fields
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const updates: any = {};
+        if (folderId !== undefined) updates.folder_id = folderId || null;
+        if (categoryId !== undefined) updates.category_id = categoryId || null;
+
         const { error } = await supabase
             .from('documents')
-            .update({ folder_id: folderId || null })
+            .update(updates)
             .eq('id', id);
 
         if (error) {
-            console.error('Error updating document folder:', error);
+            console.error('Error updating document:', error);
             return NextResponse.json({ error: error.message }, { status: 500 });
         }
 
