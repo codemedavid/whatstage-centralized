@@ -71,7 +71,7 @@ export async function searchDocuments(query: string, limit: number = 3) {
         // 2. Search Supabase via RPC
         const { data: documents, error } = await supabase.rpc('match_documents', {
             query_embedding: queryEmbedding,
-            match_threshold: 0.5, // Higher threshold for more relevant matches
+            match_threshold: 0.35, // Balanced threshold - not too strict, not too loose
             match_count: limit,
         });
 
@@ -80,7 +80,13 @@ export async function searchDocuments(query: string, limit: number = 3) {
             throw error;
         }
 
-        console.log('RAG search results:', documents?.length, documents);
+        // Log with similarity scores for debugging
+        console.log('[RAG] Search results count:', documents?.length || 0);
+        if (documents && documents.length > 0) {
+            documents.forEach((doc: any, i: number) => {
+                console.log(`[RAG] Doc ${i + 1} similarity: ${doc.similarity?.toFixed(3) || 'N/A'}, preview: ${doc.content?.substring(0, 100)}...`);
+            });
+        }
 
         if (!documents || documents.length === 0) {
             return '';

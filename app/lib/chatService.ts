@@ -175,6 +175,7 @@ export async function getBotResponse(userMessage: string, senderId: string = 'we
     ]);
 
     console.log(`Parallel fetch took ${Date.now() - startTime}ms - rules: ${rules.length}, history: ${history.length}`);
+    console.log('[RAG CONTEXT]:', context ? context.substring(0, 500) + '...' : 'NO CONTEXT RETRIEVED');
 
     // Build a natural conversation-focused system prompt
     let systemPrompt = `You are ${botName}, a Filipino salesperson texting a customer about your product. You are ${botTone}.
@@ -193,19 +194,21 @@ export async function getBotResponse(userMessage: string, senderId: string = 'we
     }
 
     // Critical grounding section - ensure AI only uses knowledge base
-    systemPrompt += `CRITICAL KNOWLEDGE GROUNDING RULES:
-- You can ONLY answer questions using the KNOWLEDGE BASE provided below
-- If the answer is NOT in the knowledge base, politely say you don't have that specific information and offer to help with something else
-- NEVER make up information, prices, features, delivery times, or details not explicitly stated in the knowledge base
-- When uncertain, ask the customer for clarification instead of guessing
-- Do not use your general knowledge about products, services, or topics - only use what's in the knowledge base
+    systemPrompt += `⚠️ STRICT KNOWLEDGE GROUNDING - FOLLOW EXACTLY:
+
+1. ONLY use information from the RULES and KNOWLEDGE BASE sections
+2. If a customer asks about PRICES, FEATURES, or DETAILS:
+   - ONLY quote EXACT info from the rules or knowledge base
+   - If the info is NOT available, say "Pasensya po, wala akong specific info tungkol dyan. Pwede po ba kayo mag-message sa aming team?"
+   - NEVER invent prices, features, or details
+3. NEVER use your training data or general knowledge - ONLY what's provided in rules and knowledge base
 
 `;
 
-    if (context) {
-        systemPrompt += `KNOWLEDGE BASE (YOUR ONLY SOURCE OF TRUTH):\n${context}\n\n`;
+    if (context && context.trim().length > 0) {
+        systemPrompt += `=== KNOWLEDGE BASE ===\n${context}\n=== END KNOWLEDGE BASE ===\n\n`;
     } else {
-        systemPrompt += `KNOWLEDGE BASE: No relevant information found for this query. Politely tell the customer you don't have specific information about their question right now, and ask if there's something else you can help with or suggest they contact support for more details.\n\n`;
+        systemPrompt += `=== KNOWLEDGE BASE ===\nNo relevant info found for this query.\n=== END KNOWLEDGE BASE ===\n\n`;
     }
 
     // Build messages array with history
@@ -227,14 +230,14 @@ export async function getBotResponse(userMessage: string, senderId: string = 'we
     try {
         const llmStart = Date.now();
 
-        // Use DeepSeek 3.1 with streaming and thinking enabled
+        // Use Qwen3-235b for better accuracy and less hallucination
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const stream: any = await client.chat.completions.create({
-            model: "deepseek-ai/deepseek-v3.1",
+            model: "qwen/qwen3-235b-a22b",
             messages,
-            temperature: 0.4,
+            temperature: 0.2,
             top_p: 0.7,
-            max_tokens: 4096,
+            max_tokens: 8192,
             stream: true,
         });
 
