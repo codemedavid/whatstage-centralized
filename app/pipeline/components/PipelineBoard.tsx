@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { Plus, Settings2, RefreshCw } from 'lucide-react';
+import { DragDropContext, DropResult } from '@hello-pangea/dnd';
 import StageColumn from './StageColumn';
 
 interface Lead {
@@ -86,6 +87,45 @@ export default function PipelineBoard() {
             fetchData();
         } catch (error) {
             console.error('Error moving lead:', error);
+        }
+    };
+
+    const onDragEnd = (result: DropResult) => {
+        const { destination, source, draggableId } = result;
+
+        // Dropped outside a valid droppable
+        if (!destination) return;
+
+        // Dropped in the same position
+        if (
+            destination.droppableId === source.droppableId &&
+            destination.index === source.index
+        ) {
+            return;
+        }
+
+        // If moving to a different stage, call the API
+        if (destination.droppableId !== source.droppableId) {
+            // Optimistic UI update
+            setStages((prevStages) => {
+                const newStages = prevStages.map(stage => ({
+                    ...stage,
+                    leads: [...stage.leads]
+                }));
+
+                const sourceStage = newStages.find(s => s.id === source.droppableId);
+                const destStage = newStages.find(s => s.id === destination.droppableId);
+
+                if (sourceStage && destStage) {
+                    const [movedLead] = sourceStage.leads.splice(source.index, 1);
+                    destStage.leads.splice(destination.index, 0, movedLead);
+                }
+
+                return newStages;
+            });
+
+            // Call API to persist the change
+            handleMoveLead(draggableId, destination.droppableId);
         }
     };
 

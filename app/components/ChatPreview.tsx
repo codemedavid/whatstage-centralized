@@ -10,7 +10,7 @@ interface Message {
 
 export default function ChatPreview() {
     const [messages, setMessages] = useState<Message[]>([
-        { role: 'bot', content: "Hi, I'm BrightBot! How can I help with your documents?" }
+        { role: 'bot', content: "Hi, I'm TestBot! How can I help with your documents?" }
     ]);
     const [input, setInput] = useState('');
     const [loading, setLoading] = useState(false);
@@ -74,7 +74,7 @@ export default function ChatPreview() {
         <div className="w-96 bg-white border-l border-gray-200 flex flex-col h-full flex-shrink-0">
             <div className="p-4 border-b border-gray-100 flex items-center gap-2">
                 <Bot className="text-teal-600" size={20} />
-                <h2 className="font-semibold text-gray-800">BrightBot</h2>
+                <h2 className="font-semibold text-gray-800">TestBot</h2>
             </div>
 
             <div className="flex-1 overflow-y-auto p-4 space-y-6 bg-gray-50/50">

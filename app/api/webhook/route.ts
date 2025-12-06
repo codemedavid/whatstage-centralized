@@ -4,6 +4,7 @@ import { getBotResponse } from '@/app/lib/chatService';
 import { supabase } from '@/app/lib/supabase';
 import { getOrCreateLead, incrementMessageCount, shouldAnalyzeStage, analyzeAndUpdateStage, moveLeadToReceiptStage } from '@/app/lib/pipelineService';
 import { analyzeImageForReceipt, isConfirmedReceipt } from '@/app/lib/receiptDetectionService';
+import { isTakeoverActive, startOrRefreshTakeover } from '@/app/lib/humanTakeoverService';
 
 // Cache settings to avoid database calls on every request
 let cachedSettings: any = null;
@@ -41,6 +42,29 @@ async function getSettings() {
             facebook_verify_token: 'TEST_TOKEN',
             facebook_page_access_token: null,
         };
+    }
+}
+
+// Check if the sender is the Page itself (human agent sending message)
+// When a human agent replies from the Page, the sender ID is the Page ID
+async function isHumanAgentMessage(senderId: string): Promise<boolean> {
+    try {
+        // Check if this sender ID matches any of our connected Facebook pages
+        const { data, error } = await supabase
+            .from('facebook_pages')
+            .select('page_id')
+            .eq('page_id', senderId)
+            .limit(1);
+
+        if (error) {
+            console.error('Error checking if sender is page:', error);
+            return false;
+        }
+
+        return data && data.length > 0;
+    } catch (error) {
+        console.error('Error in isHumanAgentMessage:', error);
+        return false;
     }
 }
 
@@ -89,6 +113,7 @@ export async function POST(req: Request) {
                 }
 
                 const sender_psid = webhook_event.sender?.id;
+                const recipient_psid = webhook_event.recipient?.id;
                 const messageId = webhook_event.message?.mid;
 
                 // Skip if already processed (prevents duplicate responses)
@@ -103,7 +128,22 @@ export async function POST(req: Request) {
                     cleanupProcessedMessages();
                 }
 
-                console.log('Processing message from:', sender_psid, 'mid:', messageId);
+                console.log('Processing message from:', sender_psid, 'to:', recipient_psid, 'mid:', messageId);
+
+                // Check if this is a message FROM the page (human agent) TO a customer
+                const isHumanMessage = await isHumanAgentMessage(sender_psid);
+
+                if (isHumanMessage && webhook_event.message) {
+                    // Human agent is sending a message - start/refresh takeover for this customer
+                    console.log('Human agent message detected! Starting takeover for recipient:', recipient_psid);
+                    waitUntil(
+                        startOrRefreshTakeover(recipient_psid).catch(err => {
+                            console.error('Error starting takeover:', err);
+                        })
+                    );
+                    // Don't process this message further (no AI response needed for outgoing messages)
+                    continue;
+                }
 
                 if (webhook_event.message) {
                     // Handle image attachments for receipt detection
@@ -168,6 +208,13 @@ async function sendTypingIndicator(sender_psid: string, on: boolean) {
 
 async function handleMessage(sender_psid: string, received_message: string) {
     console.log('handleMessage called, generating response...');
+
+    // Check if human takeover is active for this conversation
+    const takeoverActive = await isTakeoverActive(sender_psid);
+    if (takeoverActive) {
+        console.log('Human takeover active for', sender_psid, '- skipping AI response');
+        return;
+    }
 
     // Send typing indicator immediately
     await sendTypingIndicator(sender_psid, true);
