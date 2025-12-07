@@ -195,72 +195,100 @@ ${knowledgeContext.substring(0, 2000)}`;
         ? `${prompt}\n\nNote: Use trigger stage ID: "${stageId}"`
         : prompt;
 
-    try {
-        console.log('[WorkflowGenerator] Generating workflow with AI...');
+    // Retry logic with fallback models
+    const models = [
+        "meta/llama-3.1-70b-instruct",  // Faster, more reliable
+        "qwen/qwen3-235b-a22b"           // Backup - larger but slower
+    ];
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const response: any = await client.chat.completions.create({
-            model: "qwen/qwen3-235b-a22b",
-            messages: [
-                { role: 'system', content: systemPrompt },
-                { role: 'user', content: userPrompt }
-            ],
-            temperature: 0.7,
-            max_tokens: 4096,
-        });
+    let lastError: Error | null = null;
 
-        const content = response.choices[0]?.message?.content;
+    for (const model of models) {
+        try {
+            console.log(`[WorkflowGenerator] Trying model: ${model}`);
 
-        if (!content) {
-            throw new Error('Empty response from AI');
-        }
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const response: any = await client.chat.completions.create({
+                model,
+                messages: [
+                    { role: 'system', content: systemPrompt },
+                    { role: 'user', content: userPrompt }
+                ],
+                temperature: 0.7,
+                max_tokens: 4096,
+            });
 
-        // Clean the response - remove markdown code blocks if present
-        let jsonStr = content.trim();
-        if (jsonStr.startsWith('```json')) {
-            jsonStr = jsonStr.slice(7);
-        }
-        if (jsonStr.startsWith('```')) {
-            jsonStr = jsonStr.slice(3);
-        }
-        if (jsonStr.endsWith('```')) {
-            jsonStr = jsonStr.slice(0, -3);
-        }
-        jsonStr = jsonStr.trim();
+            const content = response.choices[0]?.message?.content;
 
-        // Parse the JSON
-        const workflow = JSON.parse(jsonStr) as GeneratedWorkflow;
-
-        // Validate structure
-        if (!workflow.name || !Array.isArray(workflow.nodes) || !Array.isArray(workflow.edges)) {
-            throw new Error('Invalid workflow structure');
-        }
-
-        // Ensure all nodes have required fields
-        workflow.nodes = workflow.nodes.map(node => ({
-            ...node,
-            type: 'custom' as const,
-            data: {
-                ...node.data,
-                type: node.data.type || 'message',
-                label: node.data.label || 'Untitled Node',
+            if (!content || content.trim().length === 0) {
+                console.warn(`[WorkflowGenerator] Empty response from ${model}, trying next...`);
+                lastError = new Error(`Empty response from ${model}`);
+                continue;
             }
-        }));
 
-        // Ensure all edges have styling
-        workflow.edges = workflow.edges.map(edge => ({
-            ...edge,
-            animated: edge.animated ?? true,
-            style: edge.style || { stroke: '#94a3b8', strokeWidth: 2 }
-        }));
+            console.log(`[WorkflowGenerator] Got response from ${model}:`, content.substring(0, 100));
 
-        console.log('[WorkflowGenerator] Workflow generated:', workflow.name, 'with', workflow.nodes.length, 'nodes');
+            // Clean the response - remove markdown code blocks if present
+            let jsonStr = content.trim();
 
-        return workflow;
+            // Remove thinking tags if present (Qwen model artifact)
+            if (jsonStr.includes('<think>')) {
+                const thinkEnd = jsonStr.indexOf('</think>');
+                if (thinkEnd !== -1) {
+                    jsonStr = jsonStr.substring(thinkEnd + 8).trim();
+                }
+            }
 
-    } catch (error) {
-        console.error('[WorkflowGenerator] Error generating workflow:', error);
-        throw error;
+            if (jsonStr.startsWith('```json')) {
+                jsonStr = jsonStr.slice(7);
+            }
+            if (jsonStr.startsWith('```')) {
+                jsonStr = jsonStr.slice(3);
+            }
+            if (jsonStr.endsWith('```')) {
+                jsonStr = jsonStr.slice(0, -3);
+            }
+            jsonStr = jsonStr.trim();
+
+            // Parse the JSON
+            const workflow = JSON.parse(jsonStr) as GeneratedWorkflow;
+
+            // Validate structure
+            if (!workflow.name || !Array.isArray(workflow.nodes) || !Array.isArray(workflow.edges)) {
+                console.warn(`[WorkflowGenerator] Invalid structure from ${model}, trying next...`);
+                lastError = new Error('Invalid workflow structure');
+                continue;
+            }
+
+            // Ensure all nodes have required fields
+            workflow.nodes = workflow.nodes.map(node => ({
+                ...node,
+                type: 'custom' as const,
+                data: {
+                    ...node.data,
+                    type: node.data.type || 'message',
+                    label: node.data.label || 'Untitled Node',
+                }
+            }));
+
+            // Ensure all edges have styling
+            workflow.edges = workflow.edges.map(edge => ({
+                ...edge,
+                animated: edge.animated ?? true,
+                style: edge.style || { stroke: '#94a3b8', strokeWidth: 2 }
+            }));
+
+            console.log('[WorkflowGenerator] Workflow generated:', workflow.name, 'with', workflow.nodes.length, 'nodes');
+
+            return workflow;
+
+        } catch (error) {
+            console.error(`[WorkflowGenerator] Error with ${model}:`, error);
+            lastError = error instanceof Error ? error : new Error(String(error));
+            // Continue to next model
+        }
     }
-}
 
+    // All models failed
+    throw lastError || new Error('Failed to generate workflow after all retries');
+}
