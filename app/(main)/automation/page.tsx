@@ -72,9 +72,21 @@ function AutomationPageContent() {
     }, [workflowIdFromUrl]);
 
     // Called whenever workflow data changes (from canvas)
+    const savedDataRef = useRef<string>('');
+
     const handleWorkflowChange = (workflowData: any) => {
         currentWorkflowDataRef.current = workflowData;
-        setHasUnsavedChanges(true);
+        // Only mark as unsaved if different from last saved data
+        const currentJson = JSON.stringify(workflowData);
+        if (savedDataRef.current && currentJson !== savedDataRef.current) {
+            setHasUnsavedChanges(true);
+        } else if (!savedDataRef.current) {
+            // First data received - mark as unsaved since it's a new workflow
+            if (!workflowId) {
+                setHasUnsavedChanges(true);
+            }
+            savedDataRef.current = currentJson;
+        }
     };
 
     // Explicit save button handler
@@ -116,7 +128,8 @@ function AutomationPageContent() {
                 const data = await res.json();
                 setWorkflowId(data.id);
             }
-            // Mark as saved
+            // Mark as saved and update saved reference
+            savedDataRef.current = JSON.stringify(workflowData);
             setHasUnsavedChanges(false);
         } catch (error) {
             console.error('Error saving workflow:', error);
@@ -273,8 +286,8 @@ function AutomationPageContent() {
                         onClick={handleSaveClick}
                         disabled={isSaving || !hasUnsavedChanges}
                         className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-colors shadow-sm ${hasUnsavedChanges
-                                ? 'bg-green-600 hover:bg-green-700 text-white'
-                                : 'bg-gray-100 text-gray-500 cursor-not-allowed'
+                            ? 'bg-green-600 hover:bg-green-700 text-white'
+                            : 'bg-gray-100 text-gray-500 cursor-not-allowed'
                             }`}
                     >
                         <Save size={16} />

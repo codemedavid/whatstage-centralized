@@ -53,33 +53,31 @@ function WorkflowCanvasContent({ onSave, isSaving, initialData }: WorkflowCanvas
         if (initialData?.nodes && initialData?.edges) {
             setNodes(initialData.nodes);
             setEdges(initialData.edges);
+            // Immediately notify parent of initial data
+            if (onSave) {
+                onSave({ nodes: initialData.nodes, edges: initialData.edges });
+            }
+        } else if (onSave) {
+            // For new workflow (no initial data), send default nodes
+            onSave({ nodes: initialNodes, edges: initialEdges });
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [initialData, setNodes, setEdges]);
 
-    // Track if this is first render to avoid initial change trigger
-    const isInitialMount = useRef(true);
-    const lastSavedDataRef = useRef<string>('');
+    // Track last sent data to avoid infinite loops
+    const lastSentData = useRef<string>('');
 
-    // Notify parent when data changes (not auto-save, just notification)
+    // Notify parent whenever nodes/edges change
     useEffect(() => {
-        // Skip initial mount
-        if (isInitialMount.current) {
-            isInitialMount.current = false;
-            lastSavedDataRef.current = JSON.stringify({ nodes, edges });
-            return;
-        }
+        if (!onSave) return;
 
-        // Only notify if data actually changed
         const currentData = JSON.stringify({ nodes, edges });
-        if (currentData !== lastSavedDataRef.current && onSave) {
+        // Only notify if data actually changed from last sent
+        if (currentData !== lastSentData.current) {
+            lastSentData.current = currentData;
             onSave({ nodes, edges });
         }
     }, [nodes, edges, onSave]);
-
-    // Method to mark data as saved (called externally via ref if needed)
-    const markAsSaved = useCallback(() => {
-        lastSavedDataRef.current = JSON.stringify({ nodes, edges });
-    }, [nodes, edges]);
 
     const onConnect = useCallback(
         (params: Connection) => setEdges((eds) => addEdge({ ...params, animated: true, style: { stroke: '#94a3b8', strokeWidth: 2 } }, eds)),
