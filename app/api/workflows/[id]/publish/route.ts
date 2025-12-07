@@ -22,7 +22,7 @@ export async function POST(
 
         // If publishing with apply_to_existing enabled, trigger for all existing leads in the trigger stage
         if (is_published && apply_to_existing && data.trigger_stage_id) {
-            console.log(`Publishing workflow ${id} with apply_to_existing - fetching leads in stage ${data.trigger_stage_id}`);
+            console.log(`[ApplyToExisting] Publishing workflow ${id} - fetching leads in stage ${data.trigger_stage_id}`);
 
             // Fetch all leads currently in the trigger stage
             const { data: leads, error: leadsError } = await supabase
@@ -31,9 +31,9 @@ export async function POST(
                 .eq('current_stage_id', data.trigger_stage_id);
 
             if (leadsError) {
-                console.error('Error fetching leads for apply_to_existing:', leadsError);
+                console.error('[ApplyToExisting] Error fetching leads:', leadsError);
             } else if (leads && leads.length > 0) {
-                console.log(`Triggering workflow for ${leads.length} existing leads`);
+                console.log(`[ApplyToExisting] Found ${leads.length} leads to trigger`);
 
                 // Check which leads already have an execution for this workflow to avoid duplicates
                 const { data: existingExecutions } = await supabase
@@ -42,25 +42,33 @@ export async function POST(
                     .eq('workflow_id', id);
 
                 const existingLeadIds = new Set(existingExecutions?.map(e => e.lead_id) || []);
+                console.log(`[ApplyToExisting] ${existingLeadIds.size} leads already have executions, will skip those`);
 
                 // Trigger workflow for each lead that doesn't already have an execution
+                // AWAIT each one to ensure they complete before returning
                 for (const lead of leads) {
                     if (!existingLeadIds.has(lead.id)) {
-                        console.log(`Executing workflow for existing lead: ${lead.id}`);
-                        // Execute in background - don't await to avoid blocking
-                        executeWorkflow(id, lead.id, lead.sender_id, true).catch(err => {
-                            console.error(`Error executing workflow for lead ${lead.id}:`, err);
-                        });
+                        console.log(`[ApplyToExisting] Executing workflow for lead: ${lead.id}`);
+                        try {
+                            await executeWorkflow(id, lead.id, lead.sender_id, true);
+                            console.log(`[ApplyToExisting] Workflow completed for lead: ${lead.id}`);
+                        } catch (err) {
+                            console.error(`[ApplyToExisting] Error executing workflow for lead ${lead.id}:`, err);
+                        }
                     } else {
-                        console.log(`Skipping lead ${lead.id} - already has execution`);
+                        console.log(`[ApplyToExisting] Skipping lead ${lead.id} - already has execution`);
                     }
                 }
+
+                console.log(`[ApplyToExisting] All workflow executions completed`);
+            } else {
+                console.log(`[ApplyToExisting] No leads found in stage`);
             }
         }
 
         return NextResponse.json(data);
     } catch (error) {
-        console.error('Error publishing workflow:', error);
+        console.error('[ApplyToExisting] Error publishing workflow:', error);
         return NextResponse.json({ error: 'Failed to publish workflow' }, { status: 500 });
     }
 }
