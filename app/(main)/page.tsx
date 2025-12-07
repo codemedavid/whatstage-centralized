@@ -1,13 +1,13 @@
 'use client';
 
 import { useState } from "react";
-import KnowledgeBase from "./components/KnowledgeBase";
-import ChatPreview from "./components/ChatPreview";
-import Header from "./components/Header";
-import DocumentEditor from "./components/DocumentEditor";
-import RulesEditor from "./components/RulesEditor";
+import KnowledgeBase from "../components/KnowledgeBase";
+import ChatPreview from "../components/ChatPreview";
+import Header from "../components/Header";
+import DocumentEditor from "../components/DocumentEditor";
+import RulesEditor from "../components/RulesEditor";
 
-import FAQEditor from "./components/FAQEditor";
+import FAQEditor from "../components/FAQEditor";
 import { FileText, Bot } from "lucide-react";
 
 interface Category {
