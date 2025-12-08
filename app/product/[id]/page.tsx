@@ -50,6 +50,8 @@ export default function ProductDetailPage() {
     const [selectedVariations, setSelectedVariations] = useState<Record<string, string>>({});
     const [currentPrice, setCurrentPrice] = useState<number | null>(null);
 
+    const [facebookPageId, setFacebookPageId] = useState<string | null>(null);
+
     // Simulate multiple images for the gallery (using same image for demo)
     const productImages = product?.image_url
         ? [product.image_url]
@@ -59,7 +61,21 @@ export default function ProductDetailPage() {
         if (params.id) {
             fetchProductData();
         }
+        fetchConnectedPages();
     }, [params.id]);
+
+    const fetchConnectedPages = async () => {
+        try {
+            const res = await fetch('/api/facebook/pages');
+            const data = await res.json();
+            if (data.pages && data.pages.length > 0) {
+                // Use the first connected page
+                setFacebookPageId(data.pages[0].page_id);
+            }
+        } catch (error) {
+            console.error('Failed to fetch connected pages:', error);
+        }
+    };
 
     const fetchProductData = async () => {
         setLoading(true);
@@ -123,6 +139,34 @@ export default function ProductDetailPage() {
         if (variation.price > 0) {
             setCurrentPrice(variation.price);
         }
+    };
+
+    const handleChatToBuy = () => {
+        if (!product) return;
+
+        // Check if a page is connected
+        if (!facebookPageId) {
+            alert('Store messenging is not configured. Please contact the administrator.');
+            return;
+        }
+
+        // Check if all variations are selected
+        const unselectedTypes = Object.keys(groupedVariations).filter(type => !selectedVariations[type]);
+        if (unselectedTypes.length > 0) {
+            alert(`Please select ${unselectedTypes.join(', ')} before chatting to buy.`);
+            return;
+        }
+
+        // Construct ref payload
+        // Format: p_id:123|var:Size-M,Color-Red
+        const variationString = Object.entries(selectedVariations)
+            .map(([key, value]) => `${key}-${value}`)
+            .join(',');
+
+        const refPayload = `p_id:${product.id}|vars:${variationString}`;
+
+        const mmeUrl = `https://m.me/${facebookPageId}?ref=${encodeURIComponent(refPayload)}`;
+        window.open(mmeUrl, '_blank');
     };
 
     if (loading) {
@@ -286,8 +330,8 @@ export default function ProductDetailPage() {
                                                         key={variation.id}
                                                         onClick={() => handleVariationSelect(typeName, variation)}
                                                         className={`min-w-[48px] px-4 py-2.5 rounded-lg text-sm font-medium transition-all border ${isSelected
-                                                                ? 'bg-gray-900 text-white border-gray-900 shadow-md transform scale-105'
-                                                                : 'bg-white text-gray-700 border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                                                            ? 'bg-gray-900 text-white border-gray-900 shadow-md transform scale-105'
+                                                            : 'bg-white text-gray-700 border-gray-200 hover:border-gray-300 hover:bg-gray-50'
                                                             }`}
                                                     >
                                                         {variation.value}
@@ -302,7 +346,10 @@ export default function ProductDetailPage() {
 
                         {/* Action Buttons */}
                         <div className="flex items-center gap-4 pt-4">
-                            <button className="flex-1 bg-gray-900 text-white px-8 py-4 rounded-full font-semibold hover:bg-gray-800 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 active:translate-y-0 text-lg flex items-center justify-center gap-2">
+                            <button
+                                onClick={handleChatToBuy}
+                                className="flex-1 bg-gray-900 text-white px-8 py-4 rounded-full font-semibold hover:bg-gray-800 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 active:translate-y-0 text-lg flex items-center justify-center gap-2"
+                            >
                                 <MessageCircle size={20} />
                                 Chat to Buy
                             </button>
