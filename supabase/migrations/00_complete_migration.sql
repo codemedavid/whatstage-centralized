@@ -478,10 +478,146 @@ CREATE TRIGGER update_connected_pages_updated_at
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- ============================================================================
+-- PART 15: PRODUCT CATEGORIES TABLE
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS product_categories (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  description TEXT,
+  color TEXT DEFAULT '#6B7280',
+  display_order INT DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Create index for ordering
+CREATE INDEX IF NOT EXISTS idx_product_categories_order ON product_categories(display_order);
+
+-- Enable RLS
+ALTER TABLE product_categories ENABLE ROW LEVEL SECURITY;
+
+-- Policy to allow all operations
+CREATE POLICY "Allow all operations on product_categories" ON product_categories
+  FOR ALL USING (true) WITH CHECK (true);
+
+-- Trigger for updated_at
+DROP TRIGGER IF EXISTS update_product_categories_updated_at ON product_categories;
+CREATE TRIGGER update_product_categories_updated_at
+  BEFORE UPDATE ON product_categories
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- Insert default category
+INSERT INTO product_categories (name, description, color) VALUES
+  ('General', 'Default product category', '#6B7280')
+ON CONFLICT DO NOTHING;
+
+-- ============================================================================
+-- PART 16: PRODUCTS TABLE
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS products (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  description TEXT,
+  price DECIMAL(10, 2),
+  currency TEXT DEFAULT 'PHP',
+  image_url TEXT,
+  category_id UUID REFERENCES product_categories(id) ON DELETE SET NULL,
+  is_active BOOLEAN DEFAULT true,
+  display_order INT DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Create indexes for faster queries
+CREATE INDEX IF NOT EXISTS idx_products_category ON products(category_id);
+CREATE INDEX IF NOT EXISTS idx_products_active ON products(is_active) WHERE is_active = true;
+CREATE INDEX IF NOT EXISTS idx_products_order ON products(display_order);
+
+-- Enable RLS
+ALTER TABLE products ENABLE ROW LEVEL SECURITY;
+
+-- Policy to allow all operations
+CREATE POLICY "Allow all operations on products" ON products
+  FOR ALL USING (true) WITH CHECK (true);
+
+-- Trigger for updated_at
+DROP TRIGGER IF EXISTS update_products_updated_at ON products;
+CREATE TRIGGER update_products_updated_at
+  BEFORE UPDATE ON products
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- ============================================================================
+-- PART 17: PRODUCT VARIATION TYPES TABLE
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS product_variation_types (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  display_order INT DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Enable RLS
+ALTER TABLE product_variation_types ENABLE ROW LEVEL SECURITY;
+
+-- Policy
+CREATE POLICY "Allow all operations on product_variation_types" ON product_variation_types
+  FOR ALL USING (true) WITH CHECK (true);
+
+-- Trigger for updated_at
+DROP TRIGGER IF EXISTS update_product_variation_types_updated_at ON product_variation_types;
+CREATE TRIGGER update_product_variation_types_updated_at
+  BEFORE UPDATE ON product_variation_types
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- Insert default variation types
+INSERT INTO product_variation_types (name, display_order) VALUES
+  ('Size', 1),
+  ('Color', 2)
+ON CONFLICT DO NOTHING;
+
+-- ============================================================================
+-- PART 18: PRODUCT VARIATIONS TABLE
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS product_variations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  product_id UUID NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+  variation_type_id UUID NOT NULL REFERENCES product_variation_types(id) ON DELETE CASCADE,
+  value TEXT NOT NULL,
+  price DECIMAL(10, 2) NOT NULL,
+  is_active BOOLEAN DEFAULT true,
+  display_order INT DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(product_id, variation_type_id, value)
+);
+
+-- Indexes for performance
+CREATE INDEX IF NOT EXISTS idx_product_variations_product_id ON product_variations(product_id);
+CREATE INDEX IF NOT EXISTS idx_product_variations_type_id ON product_variations(variation_type_id);
+
+-- Enable RLS
+ALTER TABLE product_variations ENABLE ROW LEVEL SECURITY;
+
+-- Policy
+CREATE POLICY "Allow all operations on product_variations" ON product_variations
+  FOR ALL USING (true) WITH CHECK (true);
+
+-- Trigger for updated_at
+DROP TRIGGER IF EXISTS update_product_variations_updated_at ON product_variations;
+CREATE TRIGGER update_product_variations_updated_at
+  BEFORE UPDATE ON product_variations
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- ============================================================================
 -- COMPLETION MESSAGE
 -- ============================================================================
 
--- This script creates all 14 tables required for Aphelion-Photon:
+-- This script creates all 18 tables required for Aphelion-Photon:
 -- 1. documents - RAG knowledge base with vector embeddings
 -- 2. document_folders - Folder organization for documents
 -- 3. knowledge_categories - Category system for knowledge base
@@ -496,3 +632,7 @@ CREATE TRIGGER update_connected_pages_updated_at
 -- 12. workflow_executions - Workflow execution tracking
 -- 13. human_takeover_sessions - Human agent takeover tracking
 -- 14. connected_pages - Facebook OAuth connected pages
+-- 15. product_categories - Product category organization
+-- 16. products - Store products with pricing
+-- 17. product_variation_types - Variation types (Size, Color, etc.)
+-- 18. product_variations - Product-specific variations with prices

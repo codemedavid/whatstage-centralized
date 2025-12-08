@@ -92,6 +92,23 @@ const PAYMENT_KEYWORDS = [
     'remittance', 'padala', 'deposit', 'magkano', 'price', 'presyo'
 ];
 
+// Product-related keywords
+const PRODUCT_KEYWORDS = [
+    'product', 'products', 'item', 'items', 'inventory', 'tinda', 'benta',
+    'store', 'shop', 'katalogo', 'catalogue', 'menu', 'list', 'available'
+];
+
+// Check if message is asking about products
+function isProductQuery(message: string): boolean {
+    const lowerMessage = message.toLowerCase();
+
+    // Check for "anong tinda niyo" or "patingin ng products" patterns
+    if (lowerMessage.includes('ano') && (lowerMessage.includes('tinda') || lowerMessage.includes('benta'))) return true;
+    if (lowerMessage.includes('available') && (lowerMessage.includes('ba') || lowerMessage.includes('kayo'))) return true;
+
+    return PRODUCT_KEYWORDS.some(keyword => lowerMessage.includes(keyword));
+}
+
 // Check if message is asking about payment methods
 function isPaymentQuery(message: string): boolean {
     const lowerMessage = message.toLowerCase();
@@ -107,6 +124,124 @@ interface PaymentMethod {
     qr_code_url: string | null;
     instructions: string | null;
     is_active: boolean;
+}
+
+// Product type
+interface Product {
+    id: string;
+    name: string;
+    description: string | null;
+    price: number | null;
+    image_url: string | null;
+    currency: string;
+    is_active: boolean;
+}
+
+// Fetch active products from database
+async function getProducts(): Promise<Product[]> {
+    try {
+        const { data, error } = await supabase
+            .from('products')
+            .select('*')
+            .eq('is_active', true)
+            .order('display_order', { ascending: true })
+            .limit(10); // Limit to 10 for carousel
+
+        if (error || !data) {
+            console.log('No products found or error:', error);
+            return [];
+        }
+
+        return data;
+    } catch (error) {
+        console.error('Error fetching products:', error);
+        return [];
+    }
+}
+
+// Send products as Facebook Generic Template cards
+async function sendProductCards(sender_psid: string, products: Product[], pageId?: string) {
+    const PAGE_ACCESS_TOKEN = await getPageToken(pageId);
+    if (!PAGE_ACCESS_TOKEN || products.length === 0) return false;
+
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://aphelion-photon.vercel.app'; // Fallback needs to be actual URL
+
+    // Build elements for Generic Template (max 10)
+    const elements = products.slice(0, 10).map(product => {
+        const priceFormatted = product.price
+            ? `₱${product.price.toLocaleString('en-PH', { minimumFractionDigits: 2 })}`
+            : 'Price upon request';
+
+        // Truncate description if too long
+        let subtitle = priceFormatted;
+        if (product.description) {
+            const desc = product.description.length > 50
+                ? product.description.substring(0, 47) + '...'
+                : product.description;
+            subtitle += ` • ${desc}`;
+        }
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const element: any = {
+            title: product.name,
+            subtitle: subtitle,
+        };
+
+        // Add image if available
+        if (product.image_url) {
+            element.image_url = product.image_url;
+        }
+
+        // Add buttons
+        element.buttons = [
+            {
+                type: 'web_url',
+                url: `${appUrl}/product/${product.id}`,
+                title: 'View Product',
+                webview_height_ratio: 'tall'
+            }
+        ];
+
+        return element;
+    });
+
+    const requestBody = {
+        recipient: { id: sender_psid },
+        message: {
+            attachment: {
+                type: 'template',
+                payload: {
+                    template_type: 'generic',
+                    elements: elements
+                }
+            }
+        }
+    };
+
+    console.log('Sending product cards:', JSON.stringify(requestBody, null, 2));
+
+    try {
+        const res = await fetch(
+            `https://graph.facebook.com/v21.0/me/messages?access_token=${PAGE_ACCESS_TOKEN}`,
+            {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(requestBody),
+            }
+        );
+
+        const resData = await res.json();
+        if (!res.ok) {
+            console.error('Failed to send product cards:', resData);
+            return false;
+        }
+
+        console.log('Product cards sent successfully');
+        return true;
+    } catch (error) {
+        console.error('Error sending product cards:', error);
+        return false;
+    }
 }
 
 // Fetch active payment methods from database
@@ -379,6 +514,27 @@ async function handleMessage(sender_psid: string, received_message: string, page
 
     // Process message and send response
     try {
+        // Check if this is a product-related query
+        if (isProductQuery(received_message)) {
+            console.log('Product query detected, fetching products...');
+            const products = await getProducts();
+
+            if (products.length > 0) {
+                // Send intro message first
+                await callSendAPI(sender_psid, {
+                    text: 'Here are our available products! 🛍️ Click on any item to view more details:'
+                }, pageId);
+
+                // Send product cards
+                const cardsSent = await sendProductCards(sender_psid, products, pageId);
+
+                if (cardsSent) {
+                    return; // Don't send AI response, cards are enough
+                }
+            }
+        }
+
+        // Check if this is a payment-related query
         // Check if this is a payment-related query
         if (isPaymentQuery(received_message)) {
             console.log('Payment query detected, fetching payment methods...');
