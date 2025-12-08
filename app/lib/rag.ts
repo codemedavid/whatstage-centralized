@@ -135,7 +135,7 @@ export async function searchDocuments(query: string, limit: number = 5) {
             const { data: priceDocs, error: priceError } = await supabase
                 .from('documents')
                 .select('id, content, metadata')
-                .or('content.ilike.%P999%,content.ilike.%price%,content.ilike.%payment%')
+                .or('content.ilike,content.ilike.%price%,content.ilike.%payment%')
                 .limit(5);
 
             if (!priceError && priceDocs) {
