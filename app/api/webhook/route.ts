@@ -686,7 +686,7 @@ export async function POST(req: Request) {
 
 // Handle Referral Events (Chat to Buy)
 async function handleReferral(sender_psid: string, referral: any, pageId?: string) {
-    const ref = referral.ref; // e.g., "p_id:123|vars:Size-M,Color-Red"
+    const ref = referral.ref; // e.g., "p_id:123|vars:Size-M,Color-Red" or "prop_id:456"
     if (!ref) return;
 
     console.log('Handling referral ref:', ref);
@@ -694,6 +694,7 @@ async function handleReferral(sender_psid: string, referral: any, pageId?: strin
     // Parse ref
     const params = new URLSearchParams(ref.replace(/\|/g, '&').replace(/:/g, '='));
     const productId = params.get('p_id');
+    const propertyId = params.get('prop_id') || params.get('property_id');
     const varsString = params.get('vars');
 
     if (productId) {
@@ -714,13 +715,82 @@ async function handleReferral(sender_psid: string, referral: any, pageId?: strin
 
             // Send the product card again for easy access
             await sendProductCards(sender_psid, [product], pageId);
+            return;
         } else {
             console.error('Referral product not found:', productId);
             await callSendAPI(sender_psid, {
                 text: "Hi! Thanks for messaging us. How can we help you today?"
             }, pageId);
+            return;
         }
     }
+
+    if (propertyId) {
+        const { data: property, error } = await supabase
+            .from('properties')
+            .select('id, title, price, address, image_url, status, bedrooms, bathrooms')
+            .eq('id', propertyId)
+            .single();
+
+        if (property && !error) {
+            const appUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://aphelion-photon.vercel.app';
+            const formattedPrice = property.price
+                ? `₱${property.price.toLocaleString('en-PH', { minimumFractionDigits: 0 })}`
+                : 'Price on request';
+            const subtitleParts = [formattedPrice];
+            if (property.address) subtitleParts.push(property.address);
+            if (property.status) subtitleParts.push(property.status.replace('_', ' '));
+            const specs: string[] = [];
+            if (property.bedrooms) specs.push(`${property.bedrooms} BR`);
+            if (property.bathrooms) specs.push(`${property.bathrooms} BA`);
+            if (specs.length) subtitleParts.push(specs.join(' • '));
+
+            await callSendAPI(sender_psid, {
+                text: `Hi! 👋 I see you're checking out "${property.title}". Would you like to talk to an agent about this property?`
+            }, pageId);
+
+            await callSendAPI(sender_psid, {
+                attachment: {
+                    type: 'template',
+                    payload: {
+                        template_type: 'generic',
+                        elements: [
+                            {
+                                title: property.title,
+                                image_url: property.image_url || undefined,
+                                subtitle: subtitleParts.join(' • '),
+                                buttons: [
+                                    {
+                                        type: 'web_url',
+                                        url: `${appUrl}/property/${property.id}`,
+                                        title: 'View Property',
+                                        webview_height_ratio: 'tall'
+                                    },
+                                    {
+                                        type: 'postback',
+                                        title: 'I want to inquire',
+                                        payload: `INQUIRE_PROP_${property.id}`
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                }
+            }, pageId);
+            return;
+        } else {
+            console.error('Referral property not found:', propertyId);
+            await callSendAPI(sender_psid, {
+                text: "Hi! Thanks for checking a property. How can we help you today?"
+            }, pageId);
+            return;
+        }
+    }
+
+    // Fallback for unknown referral types
+    await callSendAPI(sender_psid, {
+        text: "Hi! Thanks for reaching out. How can we help you today?"
+    }, pageId);
 }
 
 
