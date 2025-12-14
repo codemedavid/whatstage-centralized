@@ -177,7 +177,7 @@ export default function RulesEditor() {
                                 <label className="block text-sm font-medium text-gray-700 ml-1">Tone & Personality</label>
                                 <input
                                     type="text"
-                                    value={botName}
+                                    value={botTone}
                                     onChange={(e) => setBotTone(e.target.value)}
                                     placeholder="e.g., Friendly, professional"
                                     className="w-full px-4 py-3 bg-gray-50 border-gray-100 border focus:bg-white rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all placeholder:text-gray-400"
