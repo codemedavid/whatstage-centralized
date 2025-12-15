@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Calendar, ShoppingCart, Activity, Phone, Mail, MessageCircle, Clock, CheckCircle, AlertCircle, User, CreditCard, ShoppingBag } from 'lucide-react';
+import { X, Calendar, ShoppingCart, Activity, Phone, Mail, MessageCircle, Clock, CheckCircle, AlertCircle, User, CreditCard, ShoppingBag, FileText } from 'lucide-react';
 
 interface LeadDetailsModalProps {
     isOpen: boolean;
@@ -19,7 +19,7 @@ interface LeadDetails {
 }
 
 export default function LeadDetailsModal({ isOpen, onClose, leadId, initialLeadData }: LeadDetailsModalProps) {
-    const [activeTab, setActiveTab] = useState<'activity' | 'appointments' | 'orders'>('activity');
+    const [activeTab, setActiveTab] = useState<'activity' | 'appointments' | 'orders' | 'form_data'>('activity');
     const [data, setData] = useState<LeadDetails | null>(null);
     const [loading, setLoading] = useState(false);
 
@@ -194,6 +194,7 @@ export default function LeadDetailsModal({ isOpen, onClose, leadId, initialLeadD
                                         { id: 'activity', label: 'Activity', icon: Activity },
                                         { id: 'appointments', label: 'Appointments', icon: Calendar },
                                         { id: 'orders', label: 'Orders', icon: ShoppingCart },
+                                        { id: 'form_data', label: 'Form Data', icon: FileText },
                                     ].map((tab) => (
                                         <button
                                             key={tab.id}
@@ -204,7 +205,7 @@ export default function LeadDetailsModal({ isOpen, onClose, leadId, initialLeadD
                                                 }`}
                                         >
                                             <tab.icon size={16} />
-                                            {tab.label}
+                                            <span className="whitespace-nowrap">{tab.label}</span>
                                         </button>
                                     ))}
                                 </div>
@@ -216,6 +217,30 @@ export default function LeadDetailsModal({ isOpen, onClose, leadId, initialLeadD
                                             <div className="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
                                         </div>
                                     ) : null}
+
+                                    {activeTab === 'form_data' && (
+                                        <div className="space-y-6">
+                                            <div className="flex items-center gap-2 mb-4">
+                                                <FileText className="text-teal-600" size={24} />
+                                                <h3 className="text-lg font-bold text-gray-900">Custom Form Data</h3>
+                                            </div>
+
+                                            {!displayLead.custom_data || Object.keys(displayLead.custom_data).length === 0 ? (
+                                                <div className="text-center py-12 bg-white rounded-2xl border border-dashed border-gray-200">
+                                                    <p className="text-gray-400">No custom form data available for this lead.</p>
+                                                </div>
+                                            ) : (
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                    {Object.entries(displayLead.custom_data).map(([key, value]: [string, any]) => (
+                                                        <div key={key} className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
+                                                            <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">{key}</p>
+                                                            <p className="text-gray-900 font-medium whitespace-pre-wrap">{String(value)}</p>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
 
                                     {activeTab === 'appointments' && (
                                         <div className="space-y-4">

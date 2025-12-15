@@ -12,6 +12,7 @@ import {
     Home,
     Building,
     ChevronRight,
+    CalendarDays,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -125,9 +126,7 @@ export default function PropertyDetailClient({
                                 {formatPrice(property.price)}
                             </p>
 
-                            <p className="text-gray-600 leading-relaxed text-lg mb-8">
-                                {property.description || 'No description provided.'}
-                            </p>
+
 
                             {/* Key Specs Grid */}
                             <div className="grid grid-cols-3 sm:grid-cols-3 gap-4 mb-8">
@@ -182,6 +181,10 @@ export default function PropertyDetailClient({
                                 </div>
                             </div>
 
+                            <p className="text-gray-600 leading-relaxed text-lg mb-8 whitespace-pre-wrap">
+                                {property.description || 'No description provided.'}
+                            </p>
+
                             {/* Financials */}
                             {(property.down_payment || property.monthly_amortization || property.payment_terms) && (
                                 <div className="bg-emerald-50/50 border border-emerald-100 rounded-2xl p-6 mb-8">
@@ -212,16 +215,34 @@ export default function PropertyDetailClient({
                                 </div>
                             )}
 
-                            {/* Action Button */}
-                            <button
-                                onClick={handleChatToInquire}
-                                className="w-full bg-[#0084FF] hover:bg-[#0078E7] text-white px-8 py-4 rounded-2xl font-bold shadow-lg shadow-blue-500/20 hover:shadow-xl transform hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2 text-lg"
-                            >
-                                <MessageCircle size={24} />
-                                Chat to Inquire
-                            </button>
+                            {/* Action Buttons */}
+                            <div className="flex flex-col gap-3">
+                                <button
+                                    onClick={handleChatToInquire}
+                                    className="w-full bg-[#0084FF] hover:bg-[#0078E7] text-white px-8 py-4 rounded-2xl font-bold shadow-lg shadow-blue-500/20 hover:shadow-xl transform hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2 text-lg"
+                                >
+                                    <MessageCircle size={24} />
+                                    Chat to Inquire
+                                </button>
+
+                                <button
+                                    onClick={() => {
+                                        // If we don't have a PSID in the context (user browsing directly), 
+                                        // we might need them to pass it or just link them to the booking page
+                                        // For now, we'll try to get it from URL params if available, otherwise just link
+                                        const urlParams = new URLSearchParams(window.location.search);
+                                        const psid = urlParams.get('psid') || '';
+
+                                        window.location.href = `/book?propertyId=${property.id}&type=tripping${psid ? `&psid=${psid}` : ''}${facebookPageId ? `&pageId=${facebookPageId}` : ''}`;
+                                    }}
+                                    className="w-full bg-emerald-500 hover:bg-emerald-600 text-white px-8 py-4 rounded-2xl font-bold shadow-lg shadow-emerald-500/20 hover:shadow-xl transform hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2 text-lg"
+                                >
+                                    <CalendarDays size={24} />
+                                    Book a Tripping
+                                </button>
+                            </div>
                             <p className="text-center text-xs text-gray-400 mt-3">
-                                Redirects to Messenger to chat with an agent
+                                Connects to Messenger for confirmation
                             </p>
                         </div>
                     </div>

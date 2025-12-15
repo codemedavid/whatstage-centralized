@@ -44,6 +44,10 @@ interface Appointment {
     notes: string | null;
     status: string;
     created_at: string;
+    properties?: {
+        title: string;
+        address: string | null;
+    } | null;
 }
 
 const DAYS_OF_WEEK = [
@@ -376,6 +380,21 @@ export default function AppointmentManager({ initialAppointments = [], initialSe
                                                     <span className="text-[10px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded border border-blue-100 font-medium">
                                                         FB: {apt.facebook_name}
                                                     </span>
+                                                </div>
+                                            )}
+
+                                            {/* Property Tripping Badge */}
+                                            {apt.properties && (
+                                                <div className="flex flex-col gap-1 mb-2">
+                                                    <span className="text-[10px] bg-emerald-50 text-emerald-600 px-1.5 py-0.5 rounded border border-emerald-100 font-medium flex items-center gap-1">
+                                                        <MapPin size={8} />
+                                                        Property Viewing: {apt.properties.title}
+                                                    </span>
+                                                    {apt.facebook_name && (
+                                                        <span className="text-[10px] text-gray-500">
+                                                            Booked by: {apt.facebook_name}
+                                                        </span>
+                                                    )}
                                                 </div>
                                             )}
 

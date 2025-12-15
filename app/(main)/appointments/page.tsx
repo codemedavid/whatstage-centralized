@@ -9,7 +9,7 @@ async function getData() {
     const [appointmentsRes, settingsRes] = await Promise.all([
         supabase
             .from('appointments')
-            .select('*')
+            .select('*, properties(title, address)')
             .order('appointment_date', { ascending: true })
             .order('start_time', { ascending: true })
             .neq('status', 'cancelled'),

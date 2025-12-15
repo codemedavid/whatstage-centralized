@@ -140,8 +140,12 @@ export async function GET(request: NextRequest) {
             // Check if this slot is in the past (for today)
             let isAvailable = !bookedSlots.has(slotStart);
 
-            if (dateParam === today.toISOString().split('T')[0]) {
-                const slotDateTime = new Date(`${dateParam}T${slotStart}`);
+            // Compare using the dateParam string directly (already in YYYY-MM-DD format)
+            const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+            if (dateParam === todayStr) {
+                // Parse the slot time and compare with current time + lead time
+                const [slotHours, slotMinutes] = slotStart.split(':').map(Number);
+                const slotDateTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), slotHours, slotMinutes);
                 if (slotDateTime < minBookingDate) {
                     isAvailable = false;
                 }

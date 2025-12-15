@@ -60,8 +60,9 @@ async function getRelatedProperties(propertyId: string): Promise<Property[]> {
 // Fetch connected Facebook page
 async function getFacebookPageId(): Promise<string | null> {
     const { data, error } = await supabase
-        .from('facebook_pages')
+        .from('connected_pages')
         .select('page_id')
+        .eq('is_active', true)
         .limit(1)
         .single();
 

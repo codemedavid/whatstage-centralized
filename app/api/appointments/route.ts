@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
 
         let query = supabase
             .from('appointments')
-            .select('*')
+            .select('*, properties(title, address)')
             .order('appointment_date', { ascending: true })
             .order('start_time', { ascending: true });
 
@@ -57,16 +57,20 @@ export async function POST(request: NextRequest) {
             start_time,
             end_time,
             notes,
-            page_id
+            page_id,
+            property_id
         } = body;
 
         // Validate required fields
-        if (!sender_psid || !appointment_date || !start_time || !end_time) {
+        if (!appointment_date || !start_time || !end_time) {
             return NextResponse.json(
-                { error: 'Missing required fields: sender_psid, appointment_date, start_time, end_time' },
+                { error: 'Missing required fields: appointment_date, start_time, end_time' },
                 { status: 400 }
             );
         }
+
+        // If sender_psid is not provided, generate a placeholder one for non-messenger bookings
+        const actualPsid = sender_psid || `web_booking_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
         // Check if the slot is available
         const { data: existingAppointments, error: checkError } = await supabase
@@ -114,7 +118,7 @@ export async function POST(request: NextRequest) {
         const { data, error } = await supabase
             .from('appointments')
             .insert([{
-                sender_psid,
+                sender_psid: actualPsid,
                 customer_name: customer_name || facebookName, // Fallback to FB name if manual name is empty
                 facebook_name: facebookName,
                 customer_email,
@@ -124,6 +128,7 @@ export async function POST(request: NextRequest) {
                 end_time,
                 notes,
                 page_id,
+                property_id,
                 status: 'confirmed'
             }])
             .select()
@@ -140,7 +145,7 @@ export async function POST(request: NextRequest) {
             const { moveLeadToAppointmentStage } = await import('@/app/lib/pipelineService');
 
             // Track the activity
-            await trackActivity(sender_psid, 'appointment_booked', data.id, 'Appointment', {
+            await trackActivity(actualPsid, 'appointment_booked', data.id, 'Appointment', {
                 appointment_date,
                 start_time,
                 end_time,
@@ -148,7 +153,7 @@ export async function POST(request: NextRequest) {
             });
 
             // Move lead to "Appointment Scheduled" stage
-            await moveLeadToAppointmentStage(sender_psid, {
+            await moveLeadToAppointmentStage(actualPsid, {
                 appointmentId: data.id,
                 appointmentDate: appointment_date,
                 startTime: start_time,
@@ -156,13 +161,14 @@ export async function POST(request: NextRequest) {
 
             // Trigger appointment-based workflows
             const { triggerWorkflowsForAppointment } = await import('@/app/lib/workflowEngine');
-            await triggerWorkflowsForAppointment(data.id, sender_psid, appointment_date, start_time);
+            await triggerWorkflowsForAppointment(data.id, actualPsid, appointment_date, start_time);
         } catch (activityError) {
             console.error('Error tracking appointment activity:', activityError);
             // Don't fail the booking if activity tracking fails
         }
 
         // Send confirmation to Messenger
+        console.log('Messenger confirmation check:', { page_id, sender_psid, hasPageId: !!page_id, hasSenderPsid: !!sender_psid });
         if (page_id && sender_psid) {
             // Import dynamically to avoid circular dependencies
             const { callSendAPI } = await import('../webhook/facebookClient');
@@ -184,8 +190,30 @@ export async function POST(request: NextRequest) {
             const displayHour = hour % 12 || 12;
             const formattedTime = `${displayHour}:${minutes} ${ampm}`;
 
+            // Build confirmation message - include property info if this is a tripping
+            let confirmationMessage = `✅ Appointment Confirmed!\n\n`;
+
+            if (property_id) {
+                // Fetch property details for the confirmation message
+                const { data: propertyData } = await supabase
+                    .from('properties')
+                    .select('title, address')
+                    .eq('id', property_id)
+                    .single();
+
+                if (propertyData) {
+                    confirmationMessage += `🏠 Property Viewing: ${propertyData.title}\n`;
+                    if (propertyData.address) {
+                        confirmationMessage += `📍 ${propertyData.address}\n`;
+                    }
+                    confirmationMessage += `\n`;
+                }
+            }
+
+            confirmationMessage += `📅 ${formattedDate} at ${formattedTime}\n\nSee you then!`;
+
             await callSendAPI(sender_psid, {
-                text: `✅ Appointment Confirmed!\n\nWe've scheduled your appointment for ${formattedDate} at ${formattedTime}.\n\nSee you then!`
+                text: confirmationMessage
             }, page_id);
         }
 

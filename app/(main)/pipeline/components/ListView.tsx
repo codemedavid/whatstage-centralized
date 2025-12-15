@@ -63,10 +63,10 @@ export default function ListView({ stages, onMoveLead }: ListViewProps) {
     );
 
     return (
-        <div className="w-full bg-white rounded-lg border border-gray-100 overflow-hidden">
+        <div className="w-full bg-white rounded-lg border border-gray-100 overflow-hidden max-h-[calc(100vh-200px)] overflow-y-auto">
             <table className="w-full text-left border-collapse">
-                <thead>
-                    <tr className="border-b border-gray-100 bg-gray-50/50 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                <thead className="sticky top-0 z-10">
+                    <tr className="border-b border-gray-100 bg-gray-50 text-xs font-semibold text-gray-500 uppercase tracking-wider">
                         <th className="px-6 py-4">Lead</th>
                         <th className="px-6 py-4">Phone</th>
                         <th className="px-6 py-4">Stage</th>

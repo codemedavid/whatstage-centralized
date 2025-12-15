@@ -90,12 +90,22 @@ async function getExistingAppointments(senderPsid: string): Promise<Appointment[
 }
 
 // Server component to wrap the data fetching
-async function BookingPageContent({ senderPsid, pageId }: { senderPsid: string; pageId: string }) {
+async function BookingPageContent({ senderPsid, pageId, propertyId, bookingType }: { senderPsid: string; pageId: string; propertyId?: string; bookingType?: string }) {
     // Parallel fetch for settings and existing appointments
     const [settings, existingAppointments] = await Promise.all([
         getAppointmentSettings(),
         getExistingAppointments(senderPsid),
     ]);
+
+    let property = null;
+    if (propertyId) {
+        const { data } = await supabase
+            .from('properties')
+            .select('id, title, address, image_url, price')
+            .eq('id', propertyId)
+            .single();
+        property = data;
+    }
 
     return (
         <BookingPageClient
@@ -103,6 +113,8 @@ async function BookingPageContent({ senderPsid, pageId }: { senderPsid: string; 
             initialAppointments={existingAppointments}
             senderPsid={senderPsid}
             pageId={pageId}
+            property={property}
+            bookingType={bookingType}
         />
     );
 }
@@ -110,11 +122,13 @@ async function BookingPageContent({ senderPsid, pageId }: { senderPsid: string; 
 export default async function BookingPage({
     searchParams,
 }: {
-    searchParams: Promise<{ psid?: string; pageId?: string }>;
+    searchParams: Promise<{ psid?: string; pageId?: string; propertyId?: string; type?: string }>;
 }) {
     const params = await searchParams;
     const senderPsid = params.psid || '';
     const pageId = params.pageId || '';
+    const propertyId = params.propertyId;
+    const bookingType = params.type;
 
     return (
         <Suspense
@@ -127,7 +141,12 @@ export default async function BookingPage({
                 </div>
             }
         >
-            <BookingPageContent senderPsid={senderPsid} pageId={pageId} />
+            <BookingPageContent
+                senderPsid={senderPsid}
+                pageId={pageId}
+                propertyId={propertyId}
+                bookingType={bookingType}
+            />
         </Suspense>
     );
 }

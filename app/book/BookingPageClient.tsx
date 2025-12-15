@@ -15,6 +15,8 @@ import {
     AlertCircle,
     XCircle,
     CalendarCheck,
+    MapPin,
+    Home,
 } from 'lucide-react';
 
 interface TimeSlot {
@@ -61,13 +63,23 @@ interface BookingPageClientProps {
     initialAppointments: Appointment[];
     senderPsid: string;
     pageId: string;
+    property?: {
+        id: string;
+        title: string;
+        address: string | null;
+        image_url: string | null;
+        price: number | null;
+    } | null;
+    bookingType?: string;
 }
 
 export default function BookingPageClient({
     initialSettings,
     initialAppointments,
     senderPsid,
-    pageId
+    pageId,
+    property,
+    bookingType
 }: BookingPageClientProps) {
     const [currentMonth, setCurrentMonth] = useState(new Date());
     const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -131,7 +143,7 @@ export default function BookingPageClient({
 
     // Check if a date has an existing appointment
     const hasExistingAppointment = (date: Date) => {
-        const dateStr = date.toISOString().split('T')[0];
+        const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
         return existingAppointments.some(apt => apt.appointment_date === dateStr);
     };
 
@@ -142,7 +154,8 @@ export default function BookingPageClient({
         setError(null);
 
         try {
-            const dateStr = date.toISOString().split('T')[0];
+            // Use local date formatting to avoid UTC conversion issues
+            const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
             const res = await fetch(`/api/appointments/available?date=${dateStr}`);
             const data: AvailableSlotsResponse = await res.json();
 
@@ -182,7 +195,7 @@ export default function BookingPageClient({
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    sender_psid: senderPsid,
+                    sender_psid: senderPsid || undefined,
                     page_id: pageId,
                     customer_name: name || undefined,
                     customer_email: email || undefined,
@@ -191,6 +204,7 @@ export default function BookingPageClient({
                     start_time: selectedSlot.start_time,
                     end_time: selectedSlot.end_time,
                     notes: notes || undefined,
+                    property_id: property?.id,
                 }),
             });
 
@@ -297,7 +311,7 @@ export default function BookingPageClient({
                     </div>
                     <h1 className="text-2xl font-bold text-gray-900 mb-2">Booking Confirmed!</h1>
                     <p className="text-gray-600 mb-6">
-                        Your appointment has been scheduled for{' '}
+                        Your {bookingType === 'tripping' ? 'property viewing' : 'appointment'} has been scheduled for{' '}
                         <span className="font-semibold text-gray-900">
                             {selectedDate?.toLocaleDateString('en-US', {
                                 weekday: 'long',
@@ -323,12 +337,45 @@ export default function BookingPageClient({
             <div className="max-w-4xl mx-auto">
                 {/* Header */}
                 <div className="text-center mb-8">
-                    <div className="inline-flex items-center gap-2 bg-emerald-100 text-emerald-700 px-4 py-2 rounded-full text-sm font-medium mb-4">
-                        <Calendar size={16} />
-                        Book an Appointment
-                    </div>
+                    {property ? (
+                        <div className="bg-white rounded-3xl p-6 shadow-sm mb-6 max-w-2xl mx-auto border border-emerald-100">
+                            <div className="flex flex-col sm:flex-row gap-6 items-center">
+                                <div className="w-full sm:w-32 h-32 bg-gray-100 rounded-2xl overflow-hidden shrink-0">
+                                    {property.image_url ? (
+                                        <img src={property.image_url} alt={property.title} className="w-full h-full object-cover" />
+                                    ) : (
+                                        <div className="w-full h-full flex items-center justify-center text-gray-400">
+                                            <Home size={32} />
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="text-left flex-1 w-full">
+                                    <div className="inline-flex items-center gap-2 bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full text-xs font-medium mb-2">
+                                        <Home size={14} />
+                                        Property Tripping
+                                    </div>
+                                    <h2 className="font-bold text-gray-900 text-lg sm:text-xl mb-1 line-clamp-1">{property.title}</h2>
+                                    <div className="flex items-center text-gray-500 text-sm mb-2">
+                                        <MapPin size={14} className="mr-1 text-emerald-500" />
+                                        <span className="truncate max-w-[250px]">{property.address || 'Address on Request'}</span>
+                                    </div>
+                                    {property.price && (
+                                        <p className="font-bold text-emerald-600">
+                                            ₱{property.price.toLocaleString('en-PH', { minimumFractionDigits: 0 })}
+                                        </p>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="inline-flex items-center gap-2 bg-emerald-100 text-emerald-700 px-4 py-2 rounded-full text-sm font-medium mb-4">
+                            <Calendar size={16} />
+                            Book an Appointment
+                        </div>
+                    )}
+
                     <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">
-                        Choose Your Preferred Time
+                        {property ? 'Schedule Viewing' : 'Choose Your Preferred Time'}
                     </h1>
                     <p className="text-gray-600">
                         Select a date and time slot that works best for you

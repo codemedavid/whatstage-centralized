@@ -397,8 +397,8 @@ export async function getBotResponse(
     }
 
     if (hasProperties) {
-        uiToolsList += `- [SHOW_PROPERTIES] : When user asks about houses, lots, or properties for sale/rent.\n`;
-        examplesList += `- Example: "Meron kaming available na properties. [SHOW_PROPERTIES]"\n`;
+        uiToolsList += `- [SHOW_PROPERTIES] : When user asks about houses, lots, or properties for sale/rent. This shows a visual card - DO NOT also list property details in text.\n`;
+        examplesList += `- Example: "Meron kaming available na properties! Check mo: [SHOW_PROPERTIES]" (SHORT - no details in text)\n`;
     }
 
     // General tools always available
@@ -476,6 +476,13 @@ IMPORTANT:
 - Use this ONLY if the user explicitly asks about products, properties, or items for sale.
 - Do NOT proactively offer products/properties if the user is asking about general topics or from the Reference Data above.
 - Use the EXACT prices and details from the catalog above when answering.
+
+PROPERTY DISPLAY RULES:
+- When showing properties, ONLY use [SHOW_PROPERTIES] tag - this displays a visual property card.
+- DO NOT dump all property details (price, bedrooms, bathrooms, features, etc.) in your text message.
+- Keep your text SHORT like: "Meron kaming available! Check mo: [SHOW_PROPERTIES]"
+- ONLY provide specific details when the user asks a SPECIFIC question (e.g., "ilang bedroom?" → answer just that).
+- The property card already shows all the important info - no need to repeat it in text.
 
 `;
     }
