@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Save, Bot, Plus, Trash2, ToggleLeft, ToggleRight, Clock, MessageSquare } from 'lucide-react';
+import BotGoalSection from '@/app/components/settings/BotGoalSection';
 
 interface Rule {
     id: string;
@@ -156,6 +157,9 @@ export default function RulesEditor() {
 
             <div className="flex-1 overflow-y-auto bg-white p-6 md:p-8 flex justify-center">
                 <div className="w-full max-w-4xl space-y-8 pb-12">
+
+                    {/* Bot Goal Section */}
+                    <BotGoalSection />
 
                     {/* Bot Identity Card */}
                     <div className="bg-white rounded-[24px] p-8 border border-gray-200/60 shadow-sm hover:shadow-md transition-shadow">

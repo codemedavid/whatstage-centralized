@@ -93,6 +93,125 @@ async function getBotInstructions(): Promise<string> {
     }
 }
 
+// Fetch lead's goal status for goal-driven AI behavior
+interface LeadGoalStatus {
+    goal_met_at: string | null;
+    has_name: boolean;
+    has_email: boolean;
+    has_phone: boolean;
+}
+
+async function getLeadGoalStatus(senderId: string): Promise<LeadGoalStatus> {
+    try {
+        const { data, error } = await supabase
+            .from('leads')
+            .select('goal_met_at, name, email, phone')
+            .eq('sender_id', senderId)
+            .single();
+
+        if (error || !data) {
+            return { goal_met_at: null, has_name: false, has_email: false, has_phone: false };
+        }
+
+        return {
+            goal_met_at: data.goal_met_at,
+            has_name: !!data.name,
+            has_email: !!data.email,
+            has_phone: !!data.phone,
+        };
+    } catch (error) {
+        console.error('Error fetching lead goal status:', error);
+        return { goal_met_at: null, has_name: false, has_email: false, has_phone: false };
+    }
+}
+
+// Build goal-driven prompt context
+function buildGoalPromptContext(
+    primaryGoal: string,
+    goalStatus: LeadGoalStatus,
+    hasProducts: boolean,
+    hasProperties: boolean
+): string {
+    // If goal is already met, instruct AI to stop pursuing
+    if (goalStatus.goal_met_at) {
+        return `
+GOAL STATUS: ✅ COMPLETED
+The customer has already achieved the primary goal (${primaryGoal}). 
+- Do NOT proactively push for bookings, orders, or lead info collection.
+- Only help if the customer explicitly asks for something new.
+- Focus on customer support and answering their questions.
+
+`;
+    }
+
+    // Build goal-specific instructions
+    let goalInstructions = '';
+
+    switch (primaryGoal) {
+        case 'lead_generation':
+            const missing: string[] = [];
+            if (!goalStatus.has_name) missing.push('name');
+            if (!goalStatus.has_email) missing.push('email');
+            if (!goalStatus.has_phone) missing.push('phone');
+
+            if (missing.length > 0) {
+                goalInstructions = `
+PRIMARY GOAL: 🎯 Lead Generation
+Your mission: Naturally collect the customer's ${missing.join(', ')}.
+- Work towards getting their contact details through natural conversation.
+- Don't ask for all at once - be conversational.
+- Once you have their info, thank them and offer to help further.
+
+`;
+            } else {
+                goalInstructions = `
+GOAL STATUS: ✅ Lead info collected (name, email, phone available)
+Focus on helping the customer with their queries now.
+
+`;
+            }
+            break;
+
+        case 'appointment_booking':
+            goalInstructions = `
+PRIMARY GOAL: 📅 Appointment Booking
+Your mission: Guide the customer to book an appointment.
+- When relevant, suggest scheduling: "Gusto mo ba mag-schedule? [SHOW_BOOKING]"
+- Be helpful first, then naturally transition to booking.
+- Once booked, the goal is complete - stop suggesting more bookings.
+
+`;
+            break;
+
+        case 'tripping':
+            goalInstructions = `
+PRIMARY GOAL: 🏠 Property Tripping
+Your mission: Get the customer to schedule a property site visit.
+${hasProperties ? '- Show properties when relevant: [SHOW_PROPERTIES]' : ''}
+- Encourage them to book a tripping/site visit: [SHOW_BOOKING]
+- "Gusto mo ba pumunta para makita mo mismo? [SHOW_BOOKING]"
+
+`;
+            break;
+
+        case 'purchase':
+            goalInstructions = `
+PRIMARY GOAL: 💰 Purchase
+Your mission: Guide the customer to make a purchase.
+${hasProducts ? '- Show products when relevant: [SHOW_PRODUCTS]' : ''}
+- Help them find what they need and encourage checkout.
+- Once they complete an order, the goal is complete.
+
+`;
+            break;
+
+        default:
+            goalInstructions = '';
+    }
+
+    return goalInstructions;
+}
+
 // Payment-related keywords to detect
 const PAYMENT_KEYWORDS = [
     'payment', 'bayad', 'magbayad', 'pay', 'gcash', 'maya', 'paymaya',
@@ -400,14 +519,17 @@ export async function getBotResponse(
         getCurrentCart(senderId), // Get current cart status
         getLeadEntities(senderId), // Get structured customer facts
         getSmartPassiveState(senderId), // Get Smart Passive mode state
+        getLeadGoalStatus(senderId), // Get goal completion status
     ]);
 
-    // Deference the promise results correctly (added summary, cart, entities, and smartPassiveState)
+    // Deference the promise results correctly (added summary, cart, entities, smartPassiveState, and goalStatus)
     const [rules, history, context, instructions, activities, catalogContext] = results.slice(0, 6) as [string[], { role: string; content: string }[], string, string, LeadActivity[], string];
     const summary = results[6] as string;
     const cart = results[7] as Awaited<ReturnType<typeof getCurrentCart>>;
     const entities = results[8] as LeadEntity[];
     const smartPassiveState = results[9] as SmartPassiveState;
+    const goalStatus = results[10] as LeadGoalStatus;
+    const primaryGoal = settings.primary_goal || 'lead_generation';
 
     console.log(`Parallel fetch took ${Date.now() - startTime}ms - rules: ${rules.length}, history: ${history.length}, activities: ${activities.length}, catalog: ${catalogContext.length} chars, isPaymentQuery: ${isPaymentRelated}, summary len: ${summary.length}, cart items: ${cart?.item_count || 0}, entities: ${entities.length}, smartPassive: ${smartPassiveState.isActive}`);
     console.log('[RAG CONTEXT]:', context ? context.substring(0, 500) + '...' : 'NO CONTEXT RETRIEVED');
@@ -473,6 +595,12 @@ CRITICAL RULES:
 - If asking to book/schedule, ALWAYS use [SHOW_BOOKING]. DO NOT say "click this link".
 - DO NOT list options if you don't have their specific names. NEVER say "Pwede kang mag-choose: , , ,".
 `;
+
+    // Inject goal-driven context
+    const goalContext = buildGoalPromptContext(primaryGoal, goalStatus, !!hasProducts, !!hasProperties);
+    if (goalContext) {
+        systemPrompt += goalContext;
+    }
 
     if (hasProducts) {
         systemPrompt += `

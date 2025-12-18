@@ -5,7 +5,6 @@ import { ArrowLeft, Facebook, Trash2, CheckCircle, AlertCircle, Loader2, Calenda
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import PageSelector from '@/app/components/PageSelector';
-import BotGoalSection from '@/app/components/settings/BotGoalSection';
 
 interface ConnectedPage {
     id: string;
@@ -187,12 +186,6 @@ function SettingsContent() {
                         {message}
                     </div>
                 )}
-
-                {/* Bot Goal Section */}
-                <BotGoalSection />
-
-                {/* Divider */}
-                <div className="border-t border-gray-100" />
 
                 {/* Facebook Connection Card */}
                 <div className="space-y-6">
