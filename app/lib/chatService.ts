@@ -264,7 +264,7 @@ async function getPaymentMethods(): Promise<string> {
 
 // Fetch conversation history for a sender using hybrid selection
 // Gets 5 most recent + up to 5 high-importance messages from last 50
-async function getConversationHistory(senderId: string): Promise<{ role: string; content: string }[]> {
+export async function getConversationHistory(senderId: string): Promise<{ role: string; content: string }[]> {
     try {
         // Get the last 50 messages to select from
         const { data: allMessages, error } = await supabase

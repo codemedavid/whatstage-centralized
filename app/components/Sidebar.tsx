@@ -13,7 +13,8 @@ import {
     ChevronLeft,
     ChevronRight,
     Calendar,
-    FileText
+    Bot,
+    FileText,
 } from 'lucide-react';
 
 import Link from 'next/link';
@@ -29,6 +30,7 @@ export default function Sidebar() {
     const navItems = [
         { icon: LayoutGrid, href: '/', label: 'Dashboard' },
         { icon: Kanban, href: '/pipeline', label: 'Pipeline' },
+        { icon: Bot, href: '/knowledge', label: 'Knowledge Base' },
         { icon: FileText, href: '/forms', label: 'Forms' },
         { icon: Store, href: '/store', label: 'Store' },
         { icon: ShoppingBag, href: '/orders', label: 'Orders' },
@@ -116,4 +118,3 @@ export default function Sidebar() {
         </div>
     );
 }
-

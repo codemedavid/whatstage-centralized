@@ -304,9 +304,19 @@ CREATE TABLE IF NOT EXISTS leads (
   bot_disabled_reason TEXT,
   receipt_image_url TEXT,
   receipt_detected_at TIMESTAMPTZ,
+  -- Smart Passive Mode fields (for detecting when leads need human attention)
+  needs_human_attention BOOLEAN DEFAULT false,
+  smart_passive_activated_at TIMESTAMPTZ,
+  smart_passive_reason TEXT,
+  unanswered_question_count INT DEFAULT 0,
+  recent_questions TEXT[],
+  -- AI Priority Analysis
+  attention_priority TEXT CHECK (attention_priority IN ('critical', 'high', 'medium', 'low')),
+  priority_analyzed_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
 
 -- Indexes
 CREATE INDEX IF NOT EXISTS idx_leads_sender_id ON leads(sender_id);
@@ -315,6 +325,9 @@ CREATE INDEX IF NOT EXISTS idx_leads_receipt_detected ON leads(receipt_detected_
   WHERE receipt_detected_at IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_leads_phone ON leads(phone) WHERE phone IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_leads_email ON leads(email) WHERE email IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_leads_needs_human_attention ON leads(needs_human_attention) 
+  WHERE needs_human_attention = true;
+
 
 -- Enable RLS
 ALTER TABLE leads ENABLE ROW LEVEL SECURITY;
@@ -1408,3 +1421,45 @@ SELECT
 FROM response_feedback
 GROUP BY DATE_TRUNC('day', created_at)
 ORDER BY feedback_date DESC;
+
+-- ============================================================================
+-- FAILED WEBHOOK EVENTS TABLE (Dead Letter Queue for Central Router)
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS failed_webhook_events (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  page_id TEXT NOT NULL,
+  destination_url TEXT NOT NULL,
+  payload JSONB NOT NULL,
+  error_message TEXT,
+  retry_count INT DEFAULT 0,
+  max_retries INT DEFAULT 3,
+  next_retry_at TIMESTAMPTZ,
+  status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'retrying', 'failed', 'success')),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Indexes for efficient retry queries
+CREATE INDEX IF NOT EXISTS idx_failed_webhook_events_status ON failed_webhook_events(status) 
+  WHERE status IN ('pending', 'retrying');
+CREATE INDEX IF NOT EXISTS idx_failed_webhook_events_next_retry ON failed_webhook_events(next_retry_at) 
+  WHERE status IN ('pending', 'retrying');
+CREATE INDEX IF NOT EXISTS idx_failed_webhook_events_page_id ON failed_webhook_events(page_id);
+
+-- Enable RLS
+ALTER TABLE failed_webhook_events ENABLE ROW LEVEL SECURITY;
+
+-- Policy (read-only for non-admin, admin can manage)
+CREATE POLICY "Allow all operations on failed_webhook_events" ON failed_webhook_events
+  FOR ALL USING (true) WITH CHECK (true);
+
+-- Trigger for updated_at
+DROP TRIGGER IF EXISTS update_failed_webhook_events_updated_at ON failed_webhook_events;
+CREATE TRIGGER update_failed_webhook_events_updated_at
+  BEFORE UPDATE ON failed_webhook_events
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- Comments
+COMMENT ON TABLE failed_webhook_events IS 'Dead letter queue for failed webhook forwards from Central Router';
+COMMENT ON COLUMN failed_webhook_events.next_retry_at IS 'When to attempt the next retry (uses exponential backoff)';

@@ -21,7 +21,11 @@ CREATE INDEX IF NOT EXISTS idx_tenant_routes_active ON tenant_routes(is_active) 
 -- Enable RLS
 ALTER TABLE tenant_routes ENABLE ROW LEVEL SECURITY;
 
--- Policy to allow all operations (restrict in production via API key/auth)
+-- Policy: Currently permissive for development
+-- PRODUCTION TODO: Restrict with proper authentication:
+--   - Admin users can read/write all routes
+--   - Service role can read/write (for API operations)
+--   - Anonymous users should have NO access
 CREATE POLICY "Allow all operations on tenant_routes" ON tenant_routes
   FOR ALL USING (true) WITH CHECK (true);
 
@@ -33,3 +37,19 @@ CREATE TRIGGER update_tenant_routes_updated_at
 
 -- Comment
 COMMENT ON TABLE tenant_routes IS 'Maps Facebook Page IDs to customer instance webhook URLs for the Central Router';
+
+-- Migration: Add AI Priority Analysis fields to leads table
+-- Run this in Supabase SQL Editor
+
+-- Add attention_priority enum-like check
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS attention_priority TEXT CHECK (attention_priority IN ('critical', 'high', 'medium', 'low'));
+
+-- Add timestamp for when priority was last analyzed
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS priority_analyzed_at TIMESTAMPTZ;
+
+-- Add index for priority filtering
+CREATE INDEX IF NOT EXISTS idx_leads_attention_priority ON leads(attention_priority) WHERE attention_priority IS NOT NULL;
+
+-- Comment for documentation
+COMMENT ON COLUMN leads.attention_priority IS 'AI-assigned priority level: critical, high, medium, low';
+COMMENT ON COLUMN leads.priority_analyzed_at IS 'Timestamp when the priority was last updated by AI analysis';

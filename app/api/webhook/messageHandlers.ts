@@ -1,8 +1,9 @@
-import { generateConversationSummary, getBotResponse, ImageContext } from '@/app/lib/chatService';
+import { generateConversationSummary, getBotResponse, getConversationHistory, ImageContext } from '@/app/lib/chatService';
+import { analyzePriority, updateLeadPriority } from '@/app/lib/priorityAnalysisService';
 import { extractAndStoreContactInfo, extractContactInfo } from '@/app/lib/contactExtractionService';
 import { isTakeoverActive } from '@/app/lib/humanTakeoverService';
 import { analyzeImageForReceipt, isConfirmedReceipt } from '@/app/lib/receiptDetectionService';
-import { analyzeAndUpdateStage, getOrCreateLead, incrementMessageCount, moveLeadToReceiptStage, shouldAnalyzeStage } from '@/app/lib/pipelineService';
+import { analyzeAndUpdateStage, getOrCreateLead, incrementMessageCount, moveLeadToReceiptStage, shouldAnalyzeStage, moveLeadToAppointmentStage } from '@/app/lib/pipelineService';
 import { supabase } from '@/app/lib/supabase';
 import { detectNeedsHumanAttention, activateSmartPassive, trackQuestion, isSmartPassiveActive, deactivateSmartPassive } from '@/app/lib/smartPassiveService';
 
@@ -434,7 +435,62 @@ export async function handleMessage(sender_psid: string, received_message: strin
     const lead = await getOrCreateLead(sender_psid, pageToken || undefined);
 
     // --- BOT GOAL CHECK ---
-    // REMOVED
+    // --- BOT GOAL CHECK ---
+    // Check if the primary goal is already met in the database and ensure pipeline stage is correct
+    if (lead) {
+        try {
+            const settings = await getSettings();
+            const primaryGoal = settings?.primary_goal;
+
+            if (primaryGoal === 'appointment_booking') {
+                // Check if they have a valid future appointment or recently completed one
+                const { data: appointment } = await supabase
+                    .from('appointments')
+                    .select('id, appointment_date, start_time')
+                    .eq('sender_psid', sender_psid) // Appointments use sender_psid
+                    .neq('status', 'cancelled')
+                    .order('appointment_date', { ascending: false })
+                    .limit(1)
+                    .single();
+
+                if (appointment) {
+                    console.log(`[GoalCheck] Found appointment for ${sender_psid}, ensuring correct stage...`);
+                    await moveLeadToAppointmentStage(sender_psid, {
+                        appointmentId: appointment.id,
+                        appointmentDate: appointment.appointment_date,
+                        startTime: appointment.start_time
+                    });
+                }
+            } else if (primaryGoal === 'purchase') {
+                // Check if they have a completed order OR a detected receipt
+                // 1. Check verified receipts
+                if (lead.receipt_image_url) {
+                    // If they already have a receipt detected, ensure they are in the receipt stage
+                    // We pass a generic reason since we don't have the original image context here if it was old
+                    await moveLeadToReceiptStage(lead.id, lead.receipt_image_url, "Receipt previously detected");
+                }
+
+                // 2. Check orders table
+                const { data: order } = await supabase
+                    .from('orders')
+                    .select('id')
+                    .eq('lead_id', lead.id)
+                    .neq('status', 'pending') // Any non-pending status counts as a conversion
+                    .neq('status', 'cancelled')
+                    .limit(1)
+                    .single();
+
+                if (order) {
+                    console.log(`[GoalCheck] Found order for ${lead.id}, ensuring correct stage...`);
+                    // We treat a completed order same as a receipt for now (Payment Sent / Won)
+                    // If no receipt image, pass empty string or placeholder
+                    await moveLeadToReceiptStage(lead.id, "", "Order found in database");
+                }
+            }
+        } catch (goalError) {
+            console.error('[GoalCheck] Error checking goal completion:', goalError);
+        }
+    }
 
     // Send typing indicator immediately
     await sendTypingIndicator(sender_psid, true, pageId);
@@ -474,12 +530,40 @@ export async function handleMessage(sender_psid: string, received_message: strin
         }
 
         // --- SMART PASSIVE DETECTION ---
-        // Check if we should activate Smart Passive mode before responding
+        // Check if we should activate Smart Passive mode before responding (Fast Regex Check)
         const detection = await detectNeedsHumanAttention(received_message, sender_psid);
         if (detection.shouldActivate) {
             console.log(`[SmartPassive] Triggered - ${detection.reason}`);
             await activateSmartPassive(sender_psid, detection.reason || 'Customer needs assistance');
         }
+
+        // --- AI PRIORITY ANALYSIS (Background) ---
+        // Analyze conversation context for priority flagging
+        // We run this asynchronously to not block the response
+        (async () => {
+            try {
+                // Get recent history for context
+                const history = await getConversationHistory(sender_psid);
+                // Add current message to history for analysis
+                const currentContext = [
+                    ...history.map(m => ({ ...m, role: m.role as 'user' | 'assistant' })),
+                    { role: 'user' as const, content: received_message }
+                ];
+
+                const analysis = await analyzePriority(currentContext);
+
+                // If High or Critical, update the lead
+                if (analysis.priority === 'critical' || analysis.priority === 'high') {
+                    console.log(`[Priority] Flagged as ${analysis.priority}: ${analysis.reason}`);
+                    await updateLeadPriority(sender_psid, analysis);
+                } else if (Math.random() < 0.1) {
+                    // Occasionally update even if low/medium to keep data fresh, but save writes
+                    await updateLeadPriority(sender_psid, analysis);
+                }
+            } catch (err) {
+                console.error('[Priority] Analysis error:', err);
+            }
+        })();
 
         // Track question for repetition detection
         trackQuestion(sender_psid, received_message).catch(err => {

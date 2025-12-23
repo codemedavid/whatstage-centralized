@@ -19,18 +19,35 @@ const ESCALATION_PHRASES = [
     'manager po', 'supervisor po', 'human po',
 ];
 
-// Frustration indicators
+// Frustration indicators and complaints
 const FRUSTRATION_PHRASES = [
-    // English
+    // English - Frustration
     'you don\'t understand', 'you\'re not helping', 'this is useless',
     'terrible service', 'worst bot', 'stupid bot', 'dumb bot',
     'not what i asked', 'wrong answer', 'that\'s not right',
     'already told you', 'i said', 'how many times',
     'this is frustrating', 'so frustrating', 'i\'m frustrated',
-    // Filipino/Taglish
+    // English - Complaints
+    'i want to complain', 'file a complaint', 'make a complaint',
+    'i have a complaint', 'customer complaint', 'formal complaint',
+    'bad experience', 'terrible experience', 'worst experience',
+    'very disappointed', 'so disappointed', 'i\'m disappointed',
+    'unacceptable', 'not acceptable', 'this is unacceptable',
+    'refund', 'money back', 'get my money back', 'want a refund',
+    'scam', 'fraud', 'fake', 'deceived', 'lied to me',
+    'report you', 'report this', 'dtidph', 'dti',
+    'never again', 'worst company', 'worst service',
+    // Filipino/Taglish - Frustration
     'hindi mo maintindihan', 'di mo gets', 'mali sagot',
     'bobo bot', 'tanga', 'walang kwenta', 'useless',
     'sinabi ko na', 'ilang beses', 'nakakainis',
+    // Filipino/Taglish - Complaints  
+    'reklamo', 'mag-reklamo', 'magreklamo', 'ireklamo',
+    'hindi maganda', 'masama', 'pangit service',
+    'disappointed ako', 'na-disappoint',
+    'refund ko', 'ibalik pera', 'pera ko',
+    'scam to', 'niloko', 'niloloko', 'panloloko',
+    'i-report', 'ireport',
 ];
 
 // Similarity threshold for question repetition (0.0 to 1.0)

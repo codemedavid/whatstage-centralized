@@ -22,6 +22,8 @@ interface Lead {
     email: string | null;
     phone: string | null;
     goal_met_at: string | null;
+    receipt_image_url?: string | null;
+    receipt_detected_at?: string | null;
 }
 
 interface PipelineStage {
