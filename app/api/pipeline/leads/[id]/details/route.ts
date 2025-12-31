@@ -73,7 +73,33 @@ export async function GET(
             console.log(`Orders found for sender ${lead.sender_id}:`, orders?.length || 0);
         }
 
-        // 4. Fetch Lead Activity (Stage History)
+        // 4. Fetch Digital Product Purchases (by facebook_psid which matches lead.sender_id)
+        const { data: digitalOrders, error: digitalOrdersError } = await supabase
+            .from('digital_product_purchases')
+            .select(`
+                id,
+                amount_paid,
+                status,
+                purchase_date,
+                created_at,
+                digital_product:digital_products (
+                    id,
+                    title,
+                    price,
+                    currency,
+                    thumbnail_url
+                )
+            `)
+            .eq('facebook_psid', lead.sender_id)
+            .order('created_at', { ascending: false });
+
+        if (digitalOrdersError) {
+            console.error('Error fetching digital orders:', digitalOrdersError);
+        } else {
+            console.log(`Digital orders found for sender ${lead.sender_id}:`, digitalOrders?.length || 0);
+        }
+
+        // 5. Fetch Lead Activity (Stage History)
         const { data: activity, error: activityError } = await supabase
             .from('lead_stage_history')
             .select(`
@@ -91,6 +117,7 @@ export async function GET(
             },
             appointments: appointments || [],
             orders: orders || [],
+            digital_orders: digitalOrders || [],
             activity: activity || []
         });
 

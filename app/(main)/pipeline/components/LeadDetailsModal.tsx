@@ -17,6 +17,7 @@ interface LeadDetails {
     lead: any;
     appointments: any[];
     orders: any[];
+    digital_orders: any[];
     activity: any[];
     conversations?: { id: string; role: string; content: string; created_at: string }[];
 }
@@ -481,6 +482,59 @@ export default function LeadDetailsModal({ isOpen, onClose, leadId, initialLeadD
                                                                     </div>
                                                                 </div>
                                                                 {/* Example of items preview - could be collapsible */}
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {/* Section: Digital Products */}
+                                            <div className="space-y-4 mt-8">
+                                                <h3 className="text-sm font-bold text-purple-500 uppercase tracking-widest">Digital Products</h3>
+
+                                                {!data?.digital_orders || data.digital_orders.length === 0 ? (
+                                                    <div className="flex flex-col items-center justify-center py-8 text-center bg-white rounded-xl border border-purple-100 border-dashed">
+                                                        <p className="text-sm text-gray-400">No digital product purchases found.</p>
+                                                    </div>
+                                                ) : (
+                                                    <div className="space-y-3">
+                                                        {data.digital_orders.map((digitalOrder: any) => (
+                                                            <div key={digitalOrder.id} className="bg-white rounded-xl border border-purple-100 overflow-hidden hover:shadow-md transition-shadow">
+                                                                <div className="p-4 flex items-center justify-between">
+                                                                    <div className="flex items-center gap-4">
+                                                                        <div className="w-12 h-12 rounded-lg bg-purple-50 flex items-center justify-center overflow-hidden">
+                                                                            {digitalOrder.digital_product?.thumbnail_url ? (
+                                                                                <img
+                                                                                    src={digitalOrder.digital_product.thumbnail_url}
+                                                                                    alt={digitalOrder.digital_product?.title}
+                                                                                    className="w-full h-full object-cover"
+                                                                                />
+                                                                            ) : (
+                                                                                <FileText size={20} className="text-purple-500" />
+                                                                            )}
+                                                                        </div>
+                                                                        <div>
+                                                                            <p className="text-sm font-bold text-gray-900">
+                                                                                {digitalOrder.digital_product?.title || 'Digital Product'}
+                                                                            </p>
+                                                                            <p className="text-xs text-gray-500">
+                                                                                {new Date(digitalOrder.purchase_date || digitalOrder.created_at).toLocaleDateString()}
+                                                                            </p>
+                                                                        </div>
+                                                                    </div>
+                                                                    <div className="flex items-center gap-4">
+                                                                        <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider ${digitalOrder.status === 'active' ? 'bg-green-100 text-green-700' :
+                                                                                digitalOrder.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                                                                                    digitalOrder.status === 'cancelled' ? 'bg-red-100 text-red-700' :
+                                                                                        'bg-gray-100 text-gray-700'
+                                                                            }`}>
+                                                                            {digitalOrder.status}
+                                                                        </span>
+                                                                        <p className="text-sm font-bold text-purple-600">
+                                                                            ₱{(digitalOrder.amount_paid || digitalOrder.digital_product?.price || 0).toLocaleString()}
+                                                                        </p>
+                                                                    </div>
+                                                                </div>
                                                             </div>
                                                         ))}
                                                     </div>

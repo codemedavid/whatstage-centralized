@@ -12,7 +12,6 @@ const GOALS = [
     { id: 'appointment_booking', icon: '📅', title: 'Appointment Booking', desc: 'Schedule appointments and meetings' },
     { id: 'tripping', icon: '🏠', title: 'Tripping', desc: 'Schedule property site visits' },
     { id: 'purchase', icon: '💰', title: 'Purchase', desc: 'Drive direct sales and orders' },
-    { id: 'subscribe', icon: '📬', title: 'Subscribe', desc: 'Grow email list and newsletter subscribers' },
 ];
 
 export default function BotGoalSection({ onSave }: BotGoalSectionProps) {

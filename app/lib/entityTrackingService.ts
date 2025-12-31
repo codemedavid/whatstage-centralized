@@ -39,26 +39,35 @@ export async function extractEntitiesFromMessage(
     botResponse: string
 ): Promise<void> {
     try {
-        const prompt = `Analyze this conversation exchange and extract any customer information mentioned.
+        const prompt = `Extract customer information ONLY from what the USER explicitly stated.
 
 USER MESSAGE: "${userMessage}"
-BOT RESPONSE: "${botResponse}"
+BOT RESPONSE (for context only): "${botResponse}"
 
-Extract any of these entity types if mentioned:
-- name: Customer's name (key: "full_name", "first_name", "nickname")
-- preference: Property/product preferences (key: "bedrooms", "property_type", "location", "features")
-- budget: Budget information (key: "max_budget", "min_budget", "budget_range", "down_payment")
-- interest: Specific items of interest (key: "property_id", "product_name", "listing_interest")
-- contact: Contact information (key: "phone", "email", "messenger")
-- custom: Any other relevant customer facts
+CRITICAL RULES:
+1. ONLY extract information the USER explicitly said in their message
+2. DO NOT extract prices, details, or facts mentioned by the BOT
+3. Only extract from BOT response if the USER confirmed/acknowledged it (e.g., "yes that's my budget", "okay I'll take it")
+4. If user just asks a question or says "ok"/"thanks" without sharing new info, return []
 
-Return JSON array of entities found. If none found, return empty array [].
+Entity types to look for in USER MESSAGE:
+- name: Customer's name they stated (key: "full_name", "first_name", "nickname")
+- preference: Preferences USER expressed (key: "bedrooms", "property_type", "location", "features")
+- budget: Budget USER stated (key: "max_budget", "min_budget", "budget_range") - NOT prices bot mentioned!
+- interest: Items USER expressed interest in (key: "property_id", "product_name", "listing_interest")
+- contact: Contact info USER shared (key: "phone", "email", "messenger")
+- custom: Other facts USER shared about themselves
+
+Return JSON array. If USER didn't share any new information, return [].
 Format: [{"type": "...", "key": "...", "value": "...", "confidence": 0.0-1.0}]
 
-IMPORTANT:
-- Only extract explicitly stated information, do not infer
-- Confidence should reflect how clearly the info was stated
-- Return ONLY the JSON array, no other text`;
+Examples:
+- USER: "My name is Juan" → [{"type":"name","key":"first_name","value":"Juan","confidence":0.95}]
+- USER: "How much is that?" BOT: "It's P450" → [] (user asked question, didn't share info)
+- USER: "ok" BOT: "The price is P450" → [] (user just acknowledged, didn't confirm as their budget)
+- USER: "That P450 is within my budget" BOT: "Great!" → [{"type":"budget","key":"confirmed_budget","value":"P450","confidence":0.8}]
+
+Return ONLY the JSON array, no other text.`;
 
         const completion = await client.chat.completions.create({
             model: 'meta/llama-3.1-8b-instruct',  // Use smaller model for extraction

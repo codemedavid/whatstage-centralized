@@ -312,3 +312,34 @@ export async function getDigitalOrdersByProduct(productId: string): Promise<Digi
 
     return data as DigitalProductPurchase[];
 }
+
+/**
+ * Get purchases for a specific lead by sender_id (facebook_psid)
+ * This is used in the pipeline lead details to show digital purchases
+ */
+export async function getDigitalOrdersBySenderId(senderId: string): Promise<DigitalProductPurchase[]> {
+    const supabase = createClient();
+
+    const { data, error } = await supabase
+        .from('digital_product_purchases')
+        .select(`
+            *,
+            digital_product:digital_products (
+                id,
+                title,
+                price,
+                currency,
+                thumbnail_url,
+                payment_type
+            )
+        `)
+        .eq('facebook_psid', senderId)
+        .order('created_at', { ascending: false });
+
+    if (error) {
+        console.error('Error fetching digital orders by sender_id:', error);
+        throw error;
+    }
+
+    return data as DigitalProductPurchase[];
+}

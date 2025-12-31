@@ -9,7 +9,7 @@ export interface DashboardMetrics {
         type: 'ecommerce' | 'real_estate' | 'digital_product' | null;
     };
     goal: {
-        type: 'lead_generation' | 'appointment_booking' | 'tripping' | 'purchase' | 'subscribe';
+        type: 'lead_generation' | 'appointment_booking' | 'tripping' | 'purchase';
         reached: number;
         total: number;
         percentage: number;
@@ -162,7 +162,7 @@ async function fetchMetricsUncached(): Promise<DashboardMetrics | null> {
             .single();
 
         const goalType = (botSettings?.primary_goal || 'lead_generation') as
-            'lead_generation' | 'appointment_booking' | 'tripping' | 'purchase' | 'subscribe';
+            'lead_generation' | 'appointment_booking' | 'tripping' | 'purchase';
 
         // 2b. Get valid stages to filter phantom leads
         const { data: validStages } = await supabase

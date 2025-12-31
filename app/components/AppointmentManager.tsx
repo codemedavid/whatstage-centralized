@@ -18,6 +18,7 @@ import {
     Save,
     CheckCircle2
 } from 'lucide-react';
+import AppointmentDetailsModal from './AppointmentDetailsModal';
 
 interface AppointmentSettings {
     id?: string;
@@ -95,6 +96,8 @@ export default function AppointmentManager({ initialAppointments = [], initialSe
     const [saving, setSaving] = useState(false);
     const [cancelling, setCancelling] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
+    const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
+    const [showDetailsModal, setShowDetailsModal] = useState(false);
 
     useEffect(() => {
         if (!initialAppointments.length && !initialSettings) {
@@ -350,7 +353,11 @@ export default function AppointmentManager({ initialAppointments = [], initialSe
                             </div>
                         ) : (
                             dailyAppointments.map((apt) => (
-                                <div key={apt.id} className="group relative bg-white border border-gray-100 rounded-2xl p-4 shadow-sm hover:shadow-md hover:border-blue-100 transition-all">
+                                <div
+                                    key={apt.id}
+                                    onClick={() => { setSelectedAppointment(apt); setShowDetailsModal(true); }}
+                                    className="group relative bg-white border border-gray-100 rounded-2xl p-4 shadow-sm hover:shadow-md hover:border-blue-100 transition-all cursor-pointer">
+
                                     <div className="flex items-start gap-4">
                                         <div className="flex flex-col items-center pt-1">
                                             <div className="w-2.5 h-2.5 rounded-full bg-blue-500 mb-1"></div>
@@ -630,6 +637,21 @@ export default function AppointmentManager({ initialAppointments = [], initialSe
                     </div>
                 </div>
             )}
+
+            {/* Appointment Details Modal */}
+            <AppointmentDetailsModal
+                isOpen={showDetailsModal}
+                onClose={() => { setShowDetailsModal(false); setSelectedAppointment(null); }}
+                appointment={selectedAppointment}
+                onCancel={async (id) => {
+                    const res = await fetch(`/api/appointments?id=${id}&reason=Cancelled by admin`, { method: 'DELETE' });
+                    if (res.ok) {
+                        setAppointments(prev => prev.map(a => (a.id === id ? { ...a, status: 'cancelled' } : a)));
+                    } else {
+                        throw new Error('Failed to cancel');
+                    }
+                }}
+            />
         </div>
     );
 }
