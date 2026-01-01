@@ -353,6 +353,10 @@ COMMENT ON COLUMN digital_product_purchases.facebook_psid IS 'Facebook sender PS
 -- 1. Add step_number to form_fields (default 1 for backward compatibility)
 ALTER TABLE form_fields ADD COLUMN IF NOT EXISTS step_number INT DEFAULT 1;
 
+-- 2. Add use_separator column for number formatting
+ALTER TABLE form_fields ADD COLUMN IF NOT EXISTS use_separator BOOLEAN DEFAULT false;
+COMMENT ON COLUMN form_fields.use_separator IS 'When true, number fields show thousand separators';
+
 -- 2. Add page_id to forms for Messenger redirect
 ALTER TABLE forms ADD COLUMN IF NOT EXISTS page_id TEXT;
 CREATE INDEX IF NOT EXISTS idx_forms_page_id ON forms(page_id);
@@ -494,6 +498,60 @@ WHERE auto_follow_up_enabled IS NULL;
 UPDATE bot_settings 
 SET ai_model = 'qwen/qwen3-235b-a22b' 
 WHERE ai_model IS NULL;
+
+
+-- ============================================================================
+-- SMART PASSIVE MODE FIELDS (leads table)
+-- ============================================================================
+
+-- Add needs_human_attention flag
+-- This is set to true when the AI detects the customer needs human assistance
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS needs_human_attention BOOLEAN DEFAULT false;
+
+-- Add timestamp for when Smart Passive mode was activated
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS smart_passive_activated_at TIMESTAMPTZ;
+
+-- Track how many questions in a row went unanswered/repeated
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS unanswered_question_count INT DEFAULT 0;
+
+-- Store the last few questions to detect repetition
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS recent_questions JSONB DEFAULT '[]'::jsonb;
+
+-- Store the reason why Smart Passive was activated (for agent visibility)
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS smart_passive_reason TEXT;
+
+-- Index for quickly finding leads needing human attention (for dashboard highlighting)
+CREATE INDEX IF NOT EXISTS idx_leads_needs_human_attention ON leads(needs_human_attention) 
+  WHERE needs_human_attention = true;
+
+-- Comment for documentation
+COMMENT ON COLUMN leads.needs_human_attention IS 'True when AI has detected customer needs human agent assistance';
+COMMENT ON COLUMN leads.smart_passive_activated_at IS 'Timestamp when Smart Passive mode was activated';
+COMMENT ON COLUMN leads.unanswered_question_count IS 'Count of consecutive questions the AI could not answer satisfactorily';
+COMMENT ON COLUMN leads.recent_questions IS 'JSON array of recent questions for repetition detection';
+COMMENT ON COLUMN leads.smart_passive_reason IS 'Reason why Smart Passive was triggered (for agent visibility)';
+
+
+-- ============================================================================
+-- LEAD PRIORITY FIELDS (leads table)
+-- ============================================================================
+
+-- Add attention_priority enum-like check
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS attention_priority TEXT CHECK (attention_priority IN ('critical', 'high', 'medium', 'low'));
+
+-- Add priority_analyzed_at timestamp
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS priority_analyzed_at TIMESTAMPTZ;
+
+-- Add needs_attention boolean for quick filtering
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS needs_attention BOOLEAN DEFAULT false;
+
+-- Index for efficiently finding leads by priority
+CREATE INDEX IF NOT EXISTS idx_leads_attention_priority ON leads(attention_priority) WHERE attention_priority IS NOT NULL;
+
+-- Comment for documentation
+COMMENT ON COLUMN leads.attention_priority IS 'AI-assigned priority level: critical, high, medium, low';
+COMMENT ON COLUMN leads.priority_analyzed_at IS 'Timestamp when the priority was last updated by AI analysis';
+COMMENT ON COLUMN leads.needs_attention IS 'Flag indicating this lead requires human attention';
 
 
 -- ============================================================================

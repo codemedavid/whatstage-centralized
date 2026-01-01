@@ -243,16 +243,18 @@ export async function POST(request: Request) {
                                         .eq('id', leadId)
                                         .single();
 
-                                    // Fallback to bot_settings page_id if lead doesn't have one
+                                    // Fallback to connected_pages if lead doesn't have a page_id
                                     let pageId = lead?.page_id;
                                     if (!pageId) {
-                                        const { data: botSettings } = await supabase
-                                            .from('bot_settings')
+                                        // First try to get from connected_pages (the correct source for FB page IDs)
+                                        const { data: connectedPage } = await supabase
+                                            .from('connected_pages')
                                             .select('page_id')
+                                            .eq('is_active', true)
                                             .limit(1)
                                             .single();
-                                        pageId = botSettings?.page_id || null;
-                                        console.log(`[FormSubmit] Lead has no page_id, using bot_settings page_id: ${pageId}`);
+                                        pageId = connectedPage?.page_id || null;
+                                        console.log(`[FormSubmit] Lead has no page_id, using connected_pages page_id: ${pageId}`);
                                     }
 
                                     if (pageId) {

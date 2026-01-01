@@ -553,10 +553,10 @@ export default function DigitalProductClient({ product: initialProduct, initialF
                                             }
                                         };
 
-                                        lines.forEach((line, idx) => {
+                                        lines.forEach((line) => {
                                             const trimmedLine = line.trim();
                                             // Check if line starts with bullet point markers
-                                            const bulletMatch = trimmedLine.match(/^[-•*]\s*(.+)$/);
+                                            const bulletMatch = trimmedLine.match(/^[-•]\s*(.+)$/);
 
                                             if (bulletMatch) {
                                                 currentListItems.push(bulletMatch[1]);

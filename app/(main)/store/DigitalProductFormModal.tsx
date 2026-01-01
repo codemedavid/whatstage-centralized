@@ -425,16 +425,93 @@ export default function DigitalProductFormModal({
                                 <textarea
                                     value={description}
                                     onChange={e => setDescription(e.target.value)}
-                                    placeholder="Detailed description, what's included, benefits...
+                                    onPaste={e => {
+                                        e.preventDefault();
+
+                                        let pastedText = '';
+
+                                        // Try to get HTML first (for rich text sources like Google Docs)
+                                        const htmlData = e.clipboardData.getData('text/html');
+                                        if (htmlData) {
+                                            // Parse HTML and extract plain text with line breaks
+                                            const tempDiv = document.createElement('div');
+                                            tempDiv.innerHTML = htmlData;
+
+                                            // Simple recursive function to extract plain text with line breaks
+                                            const extractText = (node: Node): string => {
+                                                if (node.nodeType === Node.TEXT_NODE) {
+                                                    return node.textContent || '';
+                                                }
+
+                                                if (node.nodeType === Node.ELEMENT_NODE) {
+                                                    const el = node as HTMLElement;
+                                                    const tagName = el.tagName.toUpperCase();
+                                                    let result = '';
+
+                                                    // Handle line breaks
+                                                    if (tagName === 'BR') {
+                                                        return '\n';
+                                                    }
+
+                                                    // Handle list items with bullet
+                                                    if (tagName === 'LI') {
+                                                        el.childNodes.forEach(child => { result += extractText(child); });
+                                                        return `• ${result.trim()}\n`;
+                                                    }
+
+                                                    // Extract children
+                                                    el.childNodes.forEach(child => {
+                                                        result += extractText(child);
+                                                    });
+
+                                                    // Add newline after block elements
+                                                    const isBlock = ['P', 'DIV', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'TR', 'SECTION', 'ARTICLE'].includes(tagName);
+                                                    if (isBlock && result.trim()) {
+                                                        result = result.trim() + '\n';
+                                                    }
+
+                                                    return result;
+                                                }
+
+                                                return '';
+                                            };
+
+                                            pastedText = extractText(tempDiv);
+                                            // Clean up multiple consecutive newlines but preserve intentional spacing
+                                            pastedText = pastedText.replace(/\n{3,}/g, '\n\n');
+                                        } else {
+                                            // Fall back to plain text
+                                            pastedText = e.clipboardData.getData('text/plain');
+                                        }
+
+                                        // Normalize line breaks from different sources
+                                        const normalizedText = pastedText
+                                            .replace(/\r\n/g, '\n')  // Windows line breaks
+                                            .replace(/\r/g, '\n')    // Old Mac line breaks
+                                            .trim();
+
+                                        const textarea = e.target as HTMLTextAreaElement;
+                                        const start = textarea.selectionStart;
+                                        const end = textarea.selectionEnd;
+                                        const currentValue = description;
+                                        const newValue = currentValue.substring(0, start) + normalizedText + currentValue.substring(end);
+                                        setDescription(newValue);
+
+                                        // Set cursor position after pasted text
+                                        setTimeout(() => {
+                                            textarea.selectionStart = textarea.selectionEnd = start + normalizedText.length;
+                                        }, 0);
+                                    }}
+                                    placeholder={`Detailed description, what's included, benefits...
 
 • Use bullet points with - or •
-• Each line break is preserved
-• Add sections with blank lines"
-                                    rows={8}
+• Each line break is preserved`}
+                                    rows={10}
                                     className="w-full px-5 py-3.5 bg-gray-50 border-transparent focus:border-emerald-500 focus:bg-white focus:ring-0 rounded-xl transition-all text-gray-900 placeholder:text-gray-400 font-medium resize-y"
+                                    style={{ whiteSpace: 'pre-wrap' }}
                                 />
                                 <p className="text-xs text-gray-400 mt-1.5">
-                                    Tip: Use - or • at the start of a line for bullet points. Line breaks will be preserved.
+                                    Paste from any source - line breaks and bullet points will be preserved.
                                 </p>
                             </div>
 
