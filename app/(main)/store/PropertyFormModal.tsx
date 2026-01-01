@@ -73,8 +73,28 @@ export default function PropertyFormModal({
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [customType, setCustomType] = useState(false);
 
+    // Format number with thousand separators
+    const formatNumber = (value: number | string | null | undefined): string => {
+        if (value === null || value === undefined || value === '') return '';
+        const num = typeof value === 'string' ? parseFloat(value.replace(/,/g, '')) : value;
+        if (isNaN(num)) return '';
+        return num.toLocaleString('en-US', { maximumFractionDigits: 2 });
+    };
+
+    // Parse formatted number back to raw number
+    const parseFormattedNumber = (value: string): string => {
+        const cleaned = value.replace(/[^\d.]/g, '');
+        return cleaned;
+    };
+
     const handleChange = (field: string, value: any) => {
         setFormData((prev: any) => ({ ...prev, [field]: value }));
+    };
+
+    // Handle number input with formatting
+    const handleNumberChange = (field: string, value: string) => {
+        const rawValue = parseFormattedNumber(value);
+        setFormData((prev: any) => ({ ...prev, [field]: rawValue }));
     };
 
     if (!isOpen) return null;
@@ -311,9 +331,10 @@ export default function PropertyFormModal({
                                         <div className="relative">
                                             <span className="absolute left-5 top-1/2 transform -translate-y-1/2 text-gray-500 font-semibold">₱</span>
                                             <input
-                                                type="number"
-                                                value={formData.price || ''}
-                                                onChange={(e) => handleChange('price', e.target.value)}
+                                                type="text"
+                                                inputMode="numeric"
+                                                value={formatNumber(formData.price)}
+                                                onChange={(e) => handleNumberChange('price', e.target.value)}
                                                 placeholder="0.00"
                                                 className="w-full pl-10 pr-5 py-3.5 bg-gray-50 border-transparent focus:border-emerald-500 focus:bg-white focus:ring-0 rounded-xl transition-all text-gray-900 font-bold text-lg"
                                             />
@@ -327,9 +348,10 @@ export default function PropertyFormModal({
                                         <div className="relative">
                                             <span className="absolute left-5 top-1/2 transform -translate-y-1/2 text-gray-500 font-semibold">₱</span>
                                             <input
-                                                type="number"
-                                                value={formData.downPayment || ''}
-                                                onChange={(e) => handleChange('downPayment', e.target.value)}
+                                                type="text"
+                                                inputMode="numeric"
+                                                value={formatNumber(formData.downPayment)}
+                                                onChange={(e) => handleNumberChange('downPayment', e.target.value)}
                                                 placeholder="0.00"
                                                 className="w-full pl-10 pr-5 py-3.5 bg-gray-50 border-transparent focus:border-emerald-500 focus:bg-white focus:ring-0 rounded-xl transition-all text-gray-900 font-medium"
                                             />
@@ -343,9 +365,10 @@ export default function PropertyFormModal({
                                         <div className="relative">
                                             <span className="absolute left-5 top-1/2 transform -translate-y-1/2 text-gray-500 font-semibold">₱</span>
                                             <input
-                                                type="number"
-                                                value={formData.monthlyAmortization || ''}
-                                                onChange={(e) => handleChange('monthlyAmortization', e.target.value)}
+                                                type="text"
+                                                inputMode="numeric"
+                                                value={formatNumber(formData.monthlyAmortization)}
+                                                onChange={(e) => handleNumberChange('monthlyAmortization', e.target.value)}
                                                 placeholder="0.00"
                                                 className="w-full pl-10 pr-5 py-3.5 bg-gray-50 border-transparent focus:border-emerald-500 focus:bg-white focus:ring-0 rounded-xl transition-all text-gray-900 font-medium"
                                             />

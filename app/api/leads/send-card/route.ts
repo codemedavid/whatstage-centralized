@@ -68,9 +68,14 @@ export async function POST(req: Request) {
             );
         }
 
-        // Start/refresh human takeover before sending the card
+        // Start/refresh human takeover before sending the card (non-blocking)
         console.log('[SendCard] Starting human takeover for:', senderId);
-        await startOrRefreshTakeover(senderId);
+        try {
+            await startOrRefreshTakeover(senderId);
+        } catch (takeoverError) {
+            // Log but don't fail the request - we still want to send the card
+            console.error('[SendCard] Error starting takeover (continuing anyway):', takeoverError);
+        }
 
         let success = false;
         let cardDescription = '';
@@ -165,13 +170,18 @@ export async function POST(req: Request) {
             );
         }
 
-        // Optionally log this action in conversations table
-        await supabase
+        // Optionally log this action in conversations table (non-blocking)
+        supabase
             .from('conversations')
             .insert({
                 sender_id: senderId,
                 role: 'assistant',
                 content: `[Agent sent ${cardDescription}]`,
+            })
+            .then(({ error }) => {
+                if (error) {
+                    console.error('[SendCard] Error logging to conversations:', error);
+                }
             });
 
         console.log(`[SendCard] ✅ Sent ${cardType} card to ${senderId}`);
@@ -185,8 +195,9 @@ export async function POST(req: Request) {
 
     } catch (error) {
         console.error('[SendCard] Error:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         return NextResponse.json(
-            { error: 'Failed to send card' },
+            { error: `Failed to send card: ${errorMessage}` },
             { status: 500 }
         );
     }
