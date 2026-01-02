@@ -319,11 +319,6 @@ export async function sendPropertyCards(sender_psid: string, properties: Propert
                 url: `${DEFAULT_APP_URL}/property/${property.id}`,
                 title: 'View Details',
                 webview_height_ratio: 'tall'
-            },
-            {
-                type: 'postback',
-                title: '💬 Inquire',
-                payload: `INQUIRE_PROP_${property.id}`
             }
         ];
 
