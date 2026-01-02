@@ -422,18 +422,13 @@ export async function sendDigitalProductCards(sender_psid: string, products: Dig
             productUrl += `&pageId=${encodeURIComponent(pageId)}`;
         }
 
-        // Add buttons
+        // Add buttons - single Get Access button that links to the product page
         element.buttons = [
             {
                 type: 'web_url',
                 url: productUrl,
-                title: 'View Details',
-                webview_height_ratio: 'tall'
-            },
-            {
-                type: 'postback',
                 title: '🚀 Get Access',
-                payload: `GET_DIGITAL_ACCESS_${product.id}`
+                webview_height_ratio: 'tall'
             }
         ];
 

@@ -121,32 +121,45 @@ export async function generateBotConfiguration(
 ) {
     console.log('[SetupService] Generating config for flow:', preferences.style);
 
-    const systemPrompt = `You are an expert conversation designer.
-    Your task is to analyze the user's desired conversation flow and style, and generate:
+    const systemPrompt = `You are an expert AI assistant configuration designer.
+    Your task is to analyze the user's desired workflow and create task-oriented instructions for the bot.
+    
+    IMPORTANT: Generate ACTION-ORIENTED instructions that tell the bot WHAT TO DO, not conversation scripts or dialog examples.
+    Focus on tasks, goals, and behaviors - NOT specific phrases or greetings to say.
+    
+    Generate:
     1. A short, descriptive "Bot Tone" string.
-    2. A list of specific "Bot Rules" to enforce this behavior.
-    3. A comprehensive "System Prompt" (instructions) that tells the AI how to behave.
+    2. A list of specific "Bot Rules" as actionable guidelines.
+    3. A comprehensive "System Prompt" with task-oriented instructions.
     
     OUTPUT FORMAT: JSON object.
     {
         "botTone": "string (max 50 chars)",
         "rules": ["rule 1", "rule 2", "rule 3", "rule 4"],
-        "systemPrompt": "A comprehensive instruction for the AI assistant describing how to behave, what tone to use, and how to handle conversations..."
+        "systemPrompt": "Task-oriented instructions describing what the bot should accomplish..."
     }
     
-    The systemPrompt should be detailed and include:
-    - The personality and communication style
-    - How to greet customers
-    - How to handle common scenarios
-    - Key behaviors to follow
+    The systemPrompt MUST be task-oriented and include:
+    - Primary objectives and goals the bot should achieve
+    - Actions to take (e.g., "Collect customer contact information", "Qualify leads by asking about their needs")
+    - When to escalate to human agents
+    - What information to gather from customers
+    - How to prioritize different customer needs
+    
+    DO NOT include:
+    - Scripted greetings or specific phrases to say
+    - Example conversations or dialog
+    - Word-for-word responses
+    
+    Keep instructions concise and action-focused.
     `;
 
     const userPrompt = `
     Business: ${business.name} (${business.description})
-    Desired Conversation Flow: ${preferences.flowDescription}
-    Speaking Style: ${preferences.style}
+    Bot Tasks & Workflow: ${preferences.flowDescription}
+    Communication Style: ${preferences.style}
     
-    Generate the configuration with a comprehensive system prompt/instructions.
+    Generate task-oriented configuration. Focus on WHAT the bot should DO, not what it should SAY.
     `;
 
     try {

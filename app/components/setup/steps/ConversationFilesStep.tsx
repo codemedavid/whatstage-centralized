@@ -31,7 +31,7 @@ export default function ConversationFilesStep({ initialData, onNext, isLoading }
                 <form id="step3-form" onSubmit={handleSubmit} className="space-y-6">
                     <div className="group">
                         <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">
-                            Ideal Conversation Flow
+                            Bot Tasks & Workflow
                         </label>
                         <textarea
                             required
@@ -39,7 +39,7 @@ export default function ConversationFilesStep({ initialData, onNext, isLoading }
                             onChange={(e) => setFlow(e.target.value)}
                             rows={3}
                             className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl text-gray-900 focus:bg-white focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all outline-none resize-none"
-                            placeholder="e.g. Greet, ask what they need, then check schedule..."
+                            placeholder="e.g. Qualify leads by asking about their needs, collect contact info, schedule appointments, escalate urgent requests..."
                         />
                     </div>
 
