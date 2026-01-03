@@ -13,6 +13,15 @@ import {
 export const maxDuration = 60; // 60 seconds max (Vercel Pro/hobby limit)
 export const dynamic = 'force-dynamic';
 
+// Allow larger file uploads (25MB max for Facebook Messenger compatibility)
+export const config = {
+    api: {
+        bodyParser: {
+            sizeLimit: '25mb',
+        },
+    },
+};
+
 /**
  * Upload file to Cloudinary using streaming for large files
  */

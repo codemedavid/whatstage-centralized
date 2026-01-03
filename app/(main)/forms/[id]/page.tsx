@@ -44,6 +44,7 @@ interface Form {
     settings: {
         steps?: Step[];
         payment_instructions?: string;
+        payment_methods?: PaymentMethodItem[];
         payment_options?: string[];
         [key: string]: any;
     };
@@ -58,6 +59,12 @@ interface PipelineStage {
 interface ConnectedPage {
     page_id: string;
     page_name: string;
+}
+
+interface PaymentMethodItem {
+    payment_method: string;
+    name: string;
+    account_details: string;
 }
 
 export default function FormBuilderPage({ params }: { params: Promise<{ id: string }> }) {
@@ -440,20 +447,123 @@ export default function FormBuilderPage({ params }: { params: Promise<{ id: stri
                                 </div>
                             </div>
 
-                            {/* Payment instructions if has payment field */}
+                            {/* Payment Methods if has payment field */}
                             {form.fields.some(f => f.field_type === 'payment_section') && (
                                 <div className="pt-4 border-t border-gray-100">
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Payment Instructions</label>
-                                    <textarea
-                                        value={form.settings?.payment_instructions || ''}
-                                        onChange={e => setForm({
-                                            ...form,
-                                            settings: { ...form.settings, payment_instructions: e.target.value }
-                                        })}
-                                        placeholder="e.g., GCash: 09XX-XXX-XXXX (Juan Dela Cruz)&#10;Bank: BPI SA 1234-5678-90"
-                                        className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none transition-all resize-none h-24 text-sm"
-                                    />
-                                    <p className="text-xs text-gray-500 mt-1">Will be shown in the payment section</p>
+                                    <div className="flex items-center justify-between mb-3">
+                                        <label className="block text-sm font-medium text-gray-700">Payment Methods</label>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                const methods = form.settings?.payment_methods || [];
+                                                setForm({
+                                                    ...form,
+                                                    settings: {
+                                                        ...form.settings,
+                                                        payment_methods: [...methods, { payment_method: '', name: '', account_details: '' }]
+                                                    }
+                                                });
+                                            }}
+                                            className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-teal-600 bg-teal-50 hover:bg-teal-100 rounded-lg transition-colors"
+                                        >
+                                            <Plus size={14} />
+                                            Add Payment Method
+                                        </button>
+                                    </div>
+
+                                    {(!form.settings?.payment_methods || form.settings.payment_methods.length === 0) ? (
+                                        <div className="p-4 bg-gray-50 rounded-xl text-center text-sm text-gray-500 border border-dashed border-gray-200">
+                                            No payment methods added yet. Click &quot;Add Payment Method&quot; to get started.
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-3">
+                                            {form.settings.payment_methods.map((pm, pmIndex) => (
+                                                <div key={pmIndex} className="p-4 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl relative group">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            const methods = [...(form.settings?.payment_methods || [])];
+                                                            methods.splice(pmIndex, 1);
+                                                            setForm({
+                                                                ...form,
+                                                                settings: { ...form.settings, payment_methods: methods }
+                                                            });
+                                                        }}
+                                                        className="absolute top-2 right-2 p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
+                                                    >
+                                                        <Trash2 size={14} />
+                                                    </button>
+                                                    <div className="grid grid-cols-3 gap-3">
+                                                        <div>
+                                                            <label className="text-xs font-bold text-amber-700 uppercase tracking-wider mb-1 block">Payment Method</label>
+                                                            <select
+                                                                value={pm.payment_method}
+                                                                onChange={e => {
+                                                                    const methods = [...(form.settings?.payment_methods || [])];
+                                                                    methods[pmIndex] = { ...methods[pmIndex], payment_method: e.target.value };
+                                                                    setForm({
+                                                                        ...form,
+                                                                        settings: { ...form.settings, payment_methods: methods }
+                                                                    });
+                                                                }}
+                                                                className="w-full px-3 py-2 bg-white border border-amber-200 rounded-lg text-sm focus:ring-2 focus:ring-amber-400 outline-none font-medium text-gray-800"
+                                                            >
+                                                                <option value="">Select...</option>
+                                                                <option value="GCash">GCash</option>
+                                                                <option value="Maya">Maya (PayMaya)</option>
+                                                                <option value="BPI">BPI</option>
+                                                                <option value="BDO">BDO</option>
+                                                                <option value="Metrobank">Metrobank</option>
+                                                                <option value="UnionBank">UnionBank</option>
+                                                                <option value="Landbank">Landbank</option>
+                                                                <option value="PNB">PNB</option>
+                                                                <option value="Coins.ph">Coins.ph</option>
+                                                                <option value="GrabPay">GrabPay</option>
+                                                                <option value="ShopeePay">ShopeePay</option>
+                                                                <option value="Bank Transfer">Bank Transfer</option>
+                                                                <option value="Other">Other</option>
+                                                            </select>
+                                                        </div>
+                                                        <div>
+                                                            <label className="text-xs font-bold text-amber-700 uppercase tracking-wider mb-1 block">Account Name</label>
+                                                            <input
+                                                                type="text"
+                                                                value={pm.name}
+                                                                onChange={e => {
+                                                                    const methods = [...(form.settings?.payment_methods || [])];
+                                                                    methods[pmIndex] = { ...methods[pmIndex], name: e.target.value };
+                                                                    setForm({
+                                                                        ...form,
+                                                                        settings: { ...form.settings, payment_methods: methods }
+                                                                    });
+                                                                }}
+                                                                placeholder="e.g., Juan Dela Cruz"
+                                                                className="w-full px-3 py-2 bg-white border border-amber-200 rounded-lg text-sm focus:ring-2 focus:ring-amber-400 outline-none font-bold text-gray-900"
+                                                            />
+                                                        </div>
+                                                        <div>
+                                                            <label className="text-xs font-bold text-amber-700 uppercase tracking-wider mb-1 block">Account Details</label>
+                                                            <input
+                                                                type="text"
+                                                                value={pm.account_details}
+                                                                onChange={e => {
+                                                                    const methods = [...(form.settings?.payment_methods || [])];
+                                                                    methods[pmIndex] = { ...methods[pmIndex], account_details: e.target.value };
+                                                                    setForm({
+                                                                        ...form,
+                                                                        settings: { ...form.settings, payment_methods: methods }
+                                                                    });
+                                                                }}
+                                                                placeholder="e.g., 09171234567"
+                                                                className="w-full px-3 py-2 bg-white border border-amber-200 rounded-lg text-sm focus:ring-2 focus:ring-amber-400 outline-none font-bold text-gray-900"
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                    <p className="text-xs text-gray-500 mt-2">These payment methods will be displayed to customers in the payment section</p>
                                 </div>
                             )}
                         </div>

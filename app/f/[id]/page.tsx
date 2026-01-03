@@ -27,9 +27,16 @@ interface Form {
     settings: {
         steps?: Step[];
         payment_instructions?: string;
+        payment_methods?: PaymentMethodItem[];
         [key: string]: any;
     };
     fields: Field[];
+}
+
+interface PaymentMethodItem {
+    payment_method: string;
+    name: string;
+    account_details: string;
 }
 
 export default function PublicFormPage({ params }: { params: Promise<{ id: string }> }) {
@@ -327,8 +334,37 @@ export default function PublicFormPage({ params }: { params: Promise<{ id: strin
                                 {/* Payment Section */}
                                 {field.field_type === 'payment_section' ? (
                                     <div className="space-y-4">
-                                        {/* Payment Instructions */}
-                                        {form.settings?.payment_instructions && (
+                                        {/* New Payment Methods Display */}
+                                        {form.settings?.payment_methods && form.settings.payment_methods.length > 0 ? (
+                                            <div className="space-y-3">
+                                                <div className="flex items-center gap-2 text-amber-700 font-semibold">
+                                                    <CreditCard size={18} />
+                                                    <span>Payment Methods</span>
+                                                </div>
+                                                {form.settings.payment_methods.map((pm, pmIndex) => (
+                                                    <div key={pmIndex} className="p-4 bg-gradient-to-r from-amber-50 via-orange-50 to-yellow-50 border-2 border-amber-300 rounded-xl shadow-sm">
+                                                        <div className="flex items-center gap-2 mb-3">
+                                                            <span className="px-3 py-1 bg-amber-500 text-white text-xs font-bold rounded-full uppercase tracking-wide">
+                                                                {pm.payment_method || 'Payment'}
+                                                            </span>
+                                                        </div>
+                                                        <div className="space-y-2">
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="text-xs text-amber-600 uppercase font-medium w-24">Account Name:</span>
+                                                                <span className="text-lg font-black text-gray-900 tracking-wide">{pm.name}</span>
+                                                            </div>
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="text-xs text-amber-600 uppercase font-medium w-24">Account #:</span>
+                                                                <span className="text-lg font-black text-gray-900 tracking-wide font-mono bg-white px-3 py-1 rounded-lg border border-amber-200">
+                                                                    {pm.account_details}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        ) : form.settings?.payment_instructions ? (
+                                            /* Fallback to legacy payment instructions */
                                             <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl">
                                                 <div className="flex items-center gap-2 mb-2 text-amber-700 font-medium">
                                                     <CreditCard size={16} />
@@ -338,7 +374,7 @@ export default function PublicFormPage({ params }: { params: Promise<{ id: strin
                                                     {form.settings.payment_instructions}
                                                 </div>
                                             </div>
-                                        )}
+                                        ) : null}
 
                                         {/* Receipt Upload */}
                                         <div className="space-y-2">
